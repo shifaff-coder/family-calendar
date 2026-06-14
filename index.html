@@ -392,6 +392,7 @@ function changeMonth(dir) {
   if (state.month < 0) { state.month=11; state.year--; }
   if (state.month > 11) { state.month=0; state.year++; }
   renderAll();
+  loadPhoto();
 }
 function toggleFilter(id) {
   state.filterMember = state.filterMember===id ? null : id;
@@ -476,17 +477,24 @@ async function deleteEvent() {
   await saveToSheet();
 }
 
-// ── 紙カレンダー画像表示 ──
-const PHOTO_KEY = "family-calendar-photo";
+// ── 紙カレンダー画像表示（月別） ──
+function photoKey() {
+  return "family-cal-photo-" + state.year + "-" + String(state.month + 1).padStart(2, "0");
+}
 
 function loadPhoto() {
   try {
-    const saved = localStorage.getItem(PHOTO_KEY);
+    const saved = localStorage.getItem(photoKey());
     if (saved) {
       document.getElementById("photoDisplay").src = saved;
       document.getElementById("photoDisplay").style.display = "block";
       document.getElementById("photoPlaceholder").style.display = "none";
       document.getElementById("photoDeleteBtn").style.display = "";
+    } else {
+      document.getElementById("photoDisplay").src = "";
+      document.getElementById("photoDisplay").style.display = "none";
+      document.getElementById("photoPlaceholder").style.display = "";
+      document.getElementById("photoDeleteBtn").style.display = "none";
     }
   } catch {}
 }
@@ -501,7 +509,10 @@ function onPhotoSelect(e) {
     document.getElementById("photoDisplay").style.display = "block";
     document.getElementById("photoPlaceholder").style.display = "none";
     document.getElementById("photoDeleteBtn").style.display = "";
-    try { localStorage.setItem(PHOTO_KEY, dataUrl); } catch {
+    try {
+      localStorage.setItem(photoKey(), dataUrl);
+      showToast("📷 " + state.year + "年" + (state.month+1) + "月の画像を保存しました");
+    } catch {
       showToast("⚠️ 画像が大きすぎて保存できません");
     }
   };
@@ -509,13 +520,13 @@ function onPhotoSelect(e) {
 }
 
 function deletePhoto() {
-  if (!confirm("紙カレンダーの画像を削除しますか？")) return;
+  if (!confirm("この月の紙カレンダー画像を削除しますか？")) return;
   document.getElementById("photoDisplay").src = "";
   document.getElementById("photoDisplay").style.display = "none";
   document.getElementById("photoPlaceholder").style.display = "";
   document.getElementById("photoDeleteBtn").style.display = "none";
   document.getElementById("photoFileInput").value = "";
-  try { localStorage.removeItem(PHOTO_KEY); } catch {}
+  try { localStorage.removeItem(photoKey()); } catch {}
 }
 
 // ── 写真取り込み機能 ──
