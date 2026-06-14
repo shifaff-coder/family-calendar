@@ -5,8 +5,8 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="default">
-  <meta name="apple-mobile-web-app-title" content="かぞくカレンダー">
-  <title>かぞくカレンダー</title>
+  <meta name="apple-mobile-web-app-title" content="朝日カレンダー">
+  <title>朝日カレンダー</title>
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
     body { font-family: 'Hiragino Sans', 'Meiryo', sans-serif; background: #F8F6FF; min-height: 100vh; min-height: -webkit-fill-available; }
@@ -91,6 +91,20 @@
     .btn-save:disabled { background: #CCC; cursor: default; }
     .hidden { display: none; }
 
+    /* パスワード画面 */
+    .pw-screen { position: fixed; inset: 0; background: #F8F6FF; display: flex; align-items: center; justify-content: center; z-index: 999; padding: 32px; }
+    .pw-box { background: #fff; border-radius: 24px; padding: 36px 28px; width: 100%; max-width: 340px; box-shadow: 0 8px 40px rgba(100,80,180,0.15); text-align: center; }
+    .pw-title { font-size: 28px; margin-bottom: 8px; }
+    .pw-subtitle { font-size: 14px; color: #9B8EC4; margin-bottom: 28px; }
+    .pw-dots { display: flex; justify-content: center; gap: 12px; margin-bottom: 28px; }
+    .pw-dot { width: 14px; height: 14px; border-radius: 50%; background: #EDE8FF; transition: background 0.15s; }
+    .pw-dot.filled { background: #7B5DD6; }
+    .pw-numpad { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }
+    .pw-btn { background: #F8F6FF; border: none; border-radius: 16px; padding: 18px; font-size: 22px; font-weight: 700; color: #3D2D6B; cursor: pointer; font-family: inherit; transition: background 0.1s; }
+    .pw-btn:active { background: #EDE8FF; }
+    .pw-btn.del { font-size: 18px; color: #9B8EC4; }
+    .pw-error { font-size: 13px; color: #E07B8A; margin-top: 12px; min-height: 20px; }
+
     /* 予定一覧 */
     .event-list-section { margin-top: 24px; }
     .event-list-title { font-size: 13px; font-weight: 700; color: #9B8EC4; letter-spacing: 2px; margin-bottom: 10px; }
@@ -110,9 +124,39 @@
   </style>
 </head>
 <body>
-<div id="app">
+<!-- パスワード画面 -->
+<div class="pw-screen" id="pwScreen">
+  <div class="pw-box">
+    <div class="pw-title">🔒 朝日カレンダー</div>
+    <div class="pw-subtitle">パスワードを入力してください</div>
+    <div class="pw-dots" id="pwDots">
+      <div class="pw-dot" id="dot0"></div>
+      <div class="pw-dot" id="dot1"></div>
+      <div class="pw-dot" id="dot2"></div>
+      <div class="pw-dot" id="dot3"></div>
+      <div class="pw-dot" id="dot4"></div>
+      <div class="pw-dot" id="dot5"></div>
+    </div>
+    <div class="pw-numpad">
+      <button class="pw-btn" onclick="pwInput('1')">1</button>
+      <button class="pw-btn" onclick="pwInput('2')">2</button>
+      <button class="pw-btn" onclick="pwInput('3')">3</button>
+      <button class="pw-btn" onclick="pwInput('4')">4</button>
+      <button class="pw-btn" onclick="pwInput('5')">5</button>
+      <button class="pw-btn" onclick="pwInput('6')">6</button>
+      <button class="pw-btn" onclick="pwInput('7')">7</button>
+      <button class="pw-btn" onclick="pwInput('8')">8</button>
+      <button class="pw-btn" onclick="pwInput('9')">9</button>
+      <button class="pw-btn" onclick="pwInput('0')" style="grid-column:2">0</button>
+      <button class="pw-btn del" onclick="pwDelete()">⌫</button>
+    </div>
+    <div class="pw-error" id="pwError"></div>
+  </div>
+</div>
+
+<div id="app" class="hidden">
   <div class="header">
-    <div class="header-sub">かぞくのよてい</div>
+    <div class="header-sub">朝日カレンダー</div>
     <div class="header-nav">
       <button class="nav-btn" onclick="changeMonth(-1)">‹</button>
       <span class="month-label" id="monthLabel"></span>
@@ -164,6 +208,7 @@
       <div style="font-size:13px">画像をアップロードしてください</div>
     </div>
   </div>
+</div>
 </div>
 
 <!-- 予定モーダル -->
@@ -351,6 +396,7 @@ async function saveToSheet() {
 
 // ── 初期化 ──
 function init() {
+  checkAuth();
   state.events = loadLocal();
   renderAll();
   syncFromSheet();
@@ -764,6 +810,72 @@ function openImgViewerIdx(idx) {
 function closeImgViewer() {
   document.getElementById("imgViewer").classList.add("hidden");
   document.getElementById("imgViewerImg").src = "";
+}
+
+// ── パスワード管理 ──
+const PW_CORRECT = "230230";
+const PW_KEY = "family_cal_auth";
+let pwCurrent = "";
+
+function checkAuth() {
+  try {
+    const saved = JSON.parse(localStorage.getItem(PW_KEY) || "{}");
+    const now = new Date();
+    // 翌月1日まで有効
+    if (saved.expiry && new Date(saved.expiry) > now) {
+      unlockApp();
+      return;
+    }
+  } catch {}
+  // パスワード画面を表示
+  document.getElementById("pwScreen").style.display = "flex";
+  document.getElementById("app").classList.add("hidden");
+}
+
+function unlockApp() {
+  document.getElementById("pwScreen").style.display = "none";
+  document.getElementById("app").classList.remove("hidden");
+  // 翌月1日を有効期限に設定
+  const now = new Date();
+  const expiry = new Date(now.getFullYear(), now.getMonth() + 1, 1);
+  localStorage.setItem(PW_KEY, JSON.stringify({ expiry: expiry.toISOString() }));
+}
+
+function pwInput(num) {
+  if (pwCurrent.length >= 6) return;
+  pwCurrent += num;
+  updatePwDots();
+  if (pwCurrent.length === 6) {
+    setTimeout(checkPw, 200);
+  }
+}
+
+function pwDelete() {
+  pwCurrent = pwCurrent.slice(0, -1);
+  updatePwDots();
+  document.getElementById("pwError").textContent = "";
+}
+
+function updatePwDots() {
+  for (let i = 0; i < 6; i++) {
+    const dot = document.getElementById("dot" + i);
+    dot.classList.toggle("filled", i < pwCurrent.length);
+  }
+}
+
+function checkPw() {
+  if (pwCurrent === PW_CORRECT) {
+    unlockApp();
+  } else {
+    document.getElementById("pwError").textContent = "パスワードが違います";
+    // ドットを赤く点滅させてリセット
+    document.querySelectorAll(".pw-dot").forEach(d => d.style.background = "#E07B8A");
+    setTimeout(() => {
+      pwCurrent = "";
+      updatePwDots();
+      document.querySelectorAll(".pw-dot").forEach(d => d.style.background = "");
+    }, 600);
+  }
 }
 
 // ── トークン管理 ──
