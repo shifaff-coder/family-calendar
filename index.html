@@ -206,7 +206,7 @@
 <div class="toast" id="toast"></div>
 
 <script>
-const GAS_URL = "https://script.google.com/macros/s/AKfycbwmu2z2SvkLfGuupqd7lM-nRH1WyGrVwSXVv9x5umv3-o09-EfRypZukI-115Ufi6_mHw/exec";
+const GAS_URL = "https://script.google.com/macros/s/AKfycbyzENVOwVwf8M2VEaA20GsO_7F9jgUdmLvinWpdhBn5WxtZ7i3IAu2ysKFdDBkwd4eJRg/exec";
 
 const MEMBERS = [
   { id: "papa",  label: "パパ",  emoji: "👨", color: "#4A90D9", light: "#E8F3FC" },
@@ -532,37 +532,17 @@ async function loadImages() {
   document.getElementById("photoEmpty").classList.add("hidden");
   document.getElementById("photoCount").textContent = "読込中...";
   state.images = [];
-  renderImages();
   try {
     const res = await fetch(GAS_URL + "?action=getImages&yearMonth=" + ym + "&t=" + Date.now(), { redirect: "follow" });
     const text = await res.text();
     const data = JSON.parse(text);
     if (data.status === "ok") {
-      state.images = (data.images || []).map(img => ({ ...img, dataUrl: null }));
-      renderImages();
-      // 各画像のBase64を非同期で取得
-      state.images.forEach((img, idx) => fetchImageData(img.fileId, idx));
+      state.images = data.images || [];
     }
   } catch(err) {
     console.error("loadImages error:", err);
-    renderImages();
   }
-}
-
-async function fetchImageData(fileId, idx) {
-  try {
-    const res = await fetch(GAS_URL + "?action=getImage&fileId=" + fileId + "&t=" + Date.now(), { redirect: "follow" });
-    const text = await res.text();
-    const data = JSON.parse(text);
-    if (data.status === "ok") {
-      state.images[idx].dataUrl = "data:" + data.mimeType + ";base64," + data.base64;
-      // 該当画像のimgタグだけ更新
-      const imgEl = document.getElementById("photo-img-" + idx);
-      if (imgEl) imgEl.src = state.images[idx].dataUrl;
-    }
-  } catch(err) {
-    console.error("fetchImageData error:", err);
-  }
+  renderImages();
 }
 
 function renderImages() {
@@ -570,22 +550,21 @@ function renderImages() {
   const empty = document.getElementById("photoEmpty");
   const count = document.getElementById("photoCount");
   const btn = document.getElementById("photoUploadBtn");
-
   const imgs = state.images;
   count.textContent = imgs.length + " / 10枚";
   btn.disabled = imgs.length >= 10;
-
   if (imgs.length === 0) {
     grid.innerHTML = "";
+    empty.classList.remove("hidden");
+    return;
+  }
   empty.classList.add("hidden");
-  const placeholder = "data:image/svg+xml," + encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 75"><rect fill="#EDE8FF" width="100" height="100"/><text x="50" y="42" text-anchor="middle" fill="#7B5DD6" font-size="10">読込中...</text></svg>');
   grid.innerHTML = imgs.map((img, i) =>
     '<div class="photo-item">' +
-      '<img id="photo-img-' + i + '" src="' + (img.dataUrl || placeholder) + '" loading="lazy" onclick="openImgViewerIdx(' + i + ')">'  +
-      '<button class="photo-delete-btn" onclick="deleteImage(\'' + img.fileId + '\',' + i + ',event)">✕</button>' +
+      '<img src="' + img.base64 + '" loading="lazy" onclick="openImgViewerIdx(' + i + ')">'  +
+      '<button class="photo-delete-btn" onclick="deleteImage(\"' + img.id + \'",' + i + ',event)">✕</button>' +
     '</div>'
   ).join("");
-}
 }
 
 function openUploadChoice() {
@@ -637,8 +616,8 @@ async function uploadImage(file) {
     const data = JSON.parse(text);
 
     if (data.status === "ok") {
-      state.images.push({ fileId: data.fileId, url: data.url, filename: data.filename, createdAt: new Date().toISOString() });
-      renderImages();
+      // 再読み込みして最新のbase64込みデータを取得
+      await loadImages();
       showToast("🖼️ 画像をアップロードしました");
     } else {
       showToast("⚠️ " + (data.message || "アップロード失敗"));
@@ -652,7 +631,7 @@ async function uploadImage(file) {
   }
 }
 
-async function deleteImage(fileId, idx, e) {
+async function deleteImage(id, idx, e) {
   e.stopPropagation();
   if (!confirm("この画像を削除しますか？")) return;
   try {
@@ -660,7 +639,7 @@ async function deleteImage(fileId, idx, e) {
       method: "POST",
       redirect: "follow",
       headers: { "Content-Type": "text/plain" },
-      body: JSON.stringify({ action: "deleteImage", fileId }),
+      body: JSON.stringify({ action: "deleteImage", id }),
     });
     const text = await res.text();
     const data = JSON.parse(text);
@@ -692,7 +671,10 @@ function openImgViewer(url) {
 }
 function openImgViewerIdx(idx) {
   const img = state.images[idx];
-  if (img && img.dataUrl) openImgViewer(img.dataUrl);
+  if (img && img.base64) {
+    document.getElementById("imgViewerImg").src = img.base64;
+    document.getElementById("imgViewer").classList.remove("hidden");
+  }
 }
 function closeImgViewer() {
   document.getElementById("imgViewer").classList.add("hidden");
