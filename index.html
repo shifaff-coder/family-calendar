@@ -206,7 +206,7 @@
 <div class="toast" id="toast"></div>
 
 <script>
-const GAS_URL = "https://script.google.com/macros/s/AKfycbyP17ZrBmtG9W5SI1og_YNer8PTYR9RuI2IJcbStmWFw8zrn6ZB2PZC1AnhlId-5DfviQ/exec";
+const GAS_URL = "https://script.google.com/macros/s/AKfycbwmu2z2SvkLfGuupqd7lM-nRH1WyGrVwSXVv9x5umv3-o09-EfRypZukI-115Ufi6_mHw/exec";
 
 const MEMBERS = [
   { id: "papa",  label: "パパ",  emoji: "👨", color: "#4A90D9", light: "#E8F3FC" },
@@ -530,18 +530,38 @@ async function loadImages() {
   const ym = currentYearMonth();
   document.getElementById("photoGrid").innerHTML = "";
   document.getElementById("photoEmpty").classList.add("hidden");
-  document.getElementById("photoCount").textContent = "";
+  document.getElementById("photoCount").textContent = "読込中...";
+  state.images = [];
+  renderImages();
   try {
     const res = await fetch(GAS_URL + "?action=getImages&yearMonth=" + ym + "&t=" + Date.now(), { redirect: "follow" });
     const text = await res.text();
     const data = JSON.parse(text);
     if (data.status === "ok") {
-      state.images = data.images || [];
+      state.images = (data.images || []).map(img => ({ ...img, dataUrl: null }));
       renderImages();
+      // 各画像のBase64を非同期で取得
+      state.images.forEach((img, idx) => fetchImageData(img.fileId, idx));
     }
   } catch(err) {
     console.error("loadImages error:", err);
     renderImages();
+  }
+}
+
+async function fetchImageData(fileId, idx) {
+  try {
+    const res = await fetch(GAS_URL + "?action=getImage&fileId=" + fileId + "&t=" + Date.now(), { redirect: "follow" });
+    const text = await res.text();
+    const data = JSON.parse(text);
+    if (data.status === "ok") {
+      state.images[idx].dataUrl = "data:" + data.mimeType + ";base64," + data.base64;
+      // 該当画像のimgタグだけ更新
+      const imgEl = document.getElementById("photo-img-" + idx);
+      if (imgEl) imgEl.src = state.images[idx].dataUrl;
+    }
+  } catch(err) {
+    console.error("fetchImageData error:", err);
   }
 }
 
@@ -557,16 +577,15 @@ function renderImages() {
 
   if (imgs.length === 0) {
     grid.innerHTML = "";
-    empty.classList.remove("hidden");
-    return;
-  }
   empty.classList.add("hidden");
+  const placeholder = "data:image/svg+xml," + encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 75"><rect fill="#EDE8FF" width="100" height="100"/><text x="50" y="42" text-anchor="middle" fill="#7B5DD6" font-size="10">読込中...</text></svg>');
   grid.innerHTML = imgs.map((img, i) =>
     '<div class="photo-item">' +
-      '<img src="' + img.url + '" loading="lazy" onclick="openImgViewer(\'' + img.url + '\')" onerror="this.src=\'data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 75%22><rect fill=%22%23EDE8FF%22 width=%22100%22 height=%22100%22/><text x=%2250%22 y=%2242%22 text-anchor=%22middle%22 fill=%22%237B5DD6%22 font-size=%2212%22>読込中</text></svg>\'">' +
-      '<button class="photo-delete-btn" onclick="deleteImage(\'' + img.fileId + '\',event)">✕</button>' +
+      '<img id="photo-img-' + i + '" src="' + (img.dataUrl || placeholder) + '" loading="lazy" onclick="openImgViewerIdx(' + i + ')">'  +
+      '<button class="photo-delete-btn" onclick="deleteImage(\'' + img.fileId + '\',' + i + ',event)">✕</button>' +
     '</div>'
   ).join("");
+}
 }
 
 function openUploadChoice() {
@@ -633,7 +652,7 @@ async function uploadImage(file) {
   }
 }
 
-async function deleteImage(fileId, e) {
+async function deleteImage(fileId, idx, e) {
   e.stopPropagation();
   if (!confirm("この画像を削除しますか？")) return;
   try {
@@ -646,7 +665,7 @@ async function deleteImage(fileId, e) {
     const text = await res.text();
     const data = JSON.parse(text);
     if (data.status === "ok") {
-      state.images = state.images.filter(img => img.fileId !== fileId);
+      state.images.splice(idx, 1);
       renderImages();
       showToast("🗑️ 削除しました");
     } else {
@@ -670,6 +689,10 @@ function fileToBase64(file) {
 function openImgViewer(url) {
   document.getElementById("imgViewerImg").src = url;
   document.getElementById("imgViewer").classList.remove("hidden");
+}
+function openImgViewerIdx(idx) {
+  const img = state.images[idx];
+  if (img && img.dataUrl) openImgViewer(img.dataUrl);
 }
 function closeImgViewer() {
   document.getElementById("imgViewer").classList.add("hidden");
