@@ -559,12 +559,14 @@ function renderImages() {
     return;
   }
   empty.classList.add("hidden");
-  grid.innerHTML = imgs.map((img, i) =>
-    '<div class="photo-item">' +
-      '<img src="' + img.base64 + '" loading="lazy" onclick="openImgViewerIdx(' + i + ')">'  +
-      '<button class="photo-delete-btn" onclick="deleteImage(\"' + img.id + \'",' + i + ',event)">✕</button>' +
-    '</div>'
-  ).join("");
+  let html = "";
+  imgs.forEach(function(img, i) {
+    html += '<div class="photo-item">';
+    html += '<img src="' + img.base64 + '" loading="lazy" onclick="openImgViewerIdx(' + i + ')">';
+    html += '<button class="photo-delete-btn" onclick="deleteImg(' + i + ',event)">✕</button>';
+    html += '</div>';
+  });
+  grid.innerHTML = html;
 }
 
 function openUploadChoice() {
@@ -629,6 +631,11 @@ async function uploadImage(file) {
     document.getElementById("photoUploading").classList.add("hidden");
     document.getElementById("photoUploadBtn").disabled = state.images.length >= 10;
   }
+}
+
+async function deleteImg(idx, e) {
+  if (!state.images[idx]) return;
+  await deleteImage(state.images[idx].id, idx, e);
 }
 
 async function deleteImage(id, idx, e) {
