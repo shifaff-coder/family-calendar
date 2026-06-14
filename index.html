@@ -163,6 +163,8 @@
 <div class="overlay hidden" id="overlay" onclick="handleOverlayClick(event)">
   <div class="modal" onclick="event.stopPropagation()">
     <div class="modal-title" id="modalTitle"></div>
+    <label>日付</label>
+    <input type="date" id="formDate" style="width:100%;padding:11px 13px;border-radius:10px;border:2px solid #EDE8FF;font-size:15px;color:#3D2D6B;outline:none;margin-bottom:14px;font-family:inherit;">
     <label>タイトル</label>
     <input type="text" id="formTitle" placeholder="例：参観日、歯医者...">
     <label>だれの予定？</label>
@@ -206,7 +208,7 @@
 <div class="toast" id="toast"></div>
 
 <script>
-const GAS_URL = "https://script.google.com/macros/s/AKfycbwo4BgG85A64RfXBGXF6_u9s8kOzb0JjSfDE9jSjRFV2vka4mPSbmKhaiNmxQs1xzeG/exec";
+const GAS_URL = "https://script.google.com/macros/s/AKfycbz15714vdWLmkH73AZWLFqltmy8qHwqgjWfWnkTtP49d4lCi7ZpBWv9zg27Zkms2a3wLA/exec";
 
 const MEMBERS = [
   { id: "papa",  label: "パパ",  emoji: "👨", color: "#4A90D9", light: "#E8F3FC" },
@@ -471,6 +473,7 @@ function showModal() {
   const m = state.modal;
   document.getElementById("overlay").classList.remove("hidden");
   document.getElementById("modalTitle").innerHTML = m.editId ? "✏️ 予定を編集" : '📋 予定を追加 <span class="modal-date">' + m.date + '</span>';
+  document.getElementById("formDate").value = m.date || "";
   document.getElementById("formTitle").value = m.title;
   document.getElementById("formNote").value = m.note;
   document.getElementById("btnSave").textContent = m.editId ? "保存する" : "追加する";
@@ -507,11 +510,13 @@ async function saveEvent() {
   const m = state.modal;
   const title = document.getElementById("formTitle").value.trim();
   const note = document.getElementById("formNote").value.trim();
+  const date = document.getElementById("formDate").value;
+  if (!date) { alert("日付を選んでください"); return; }
   if (!title || m.memberIds.length===0) { alert("タイトルとメンバーを選んでください"); return; }
   if (m.editId) {
-    state.events = state.events.map(e => String(e.id)===String(m.editId) ? {...e, title, memberIds:m.memberIds, categoryEmoji:m.emoji, note} : e);
+    state.events = state.events.map(e => String(e.id)===String(m.editId) ? {...e, date, title, memberIds:m.memberIds, categoryEmoji:m.emoji, note} : e);
   } else {
-    state.events.push({ id: Date.now().toString() + Math.random(), date:m.date, title, memberIds:m.memberIds, categoryEmoji:m.emoji, note });
+    state.events.push({ id: Date.now().toString() + Math.random(), date, title, memberIds:m.memberIds, categoryEmoji:m.emoji, note });
   }
   closeModal();
   renderAll();
