@@ -268,11 +268,16 @@ async function syncFromSheet() {
     const text = await res.text();
     const data = JSON.parse(text);
     if (data.status === "ok") {
-      state.events = (data.events || []).map(ev => ({
-        ...ev,
-        memberIds: Array.isArray(ev.memberIds) ? ev.memberIds :
-          (typeof ev.memberIds === "string" ? JSON.parse(ev.memberIds) : [])
-      }));
+      state.events = (data.events || []).map(ev => {
+        // 日付を正規化 "2026-06-14T15:00:00.000Z" → "2026-06-14"
+        const date = (ev.date || "").substring(0, 10);
+        // memberIdsを正規化
+        let memberIds = ev.memberIds;
+        if (!Array.isArray(memberIds)) {
+          try { memberIds = JSON.parse(memberIds); } catch { memberIds = []; }
+        }
+        return { ...ev, date, memberIds };
+      });
       saveLocal();
       renderAll();
       setSyncStatus("ok", "同期済み " + nowStr());
@@ -432,7 +437,7 @@ function renderCalendar() {
 }
 
 function getEventsForDate(dateStr) {
-  return state.events.filter(e => e.date===dateStr && (!state.filterMember || e.memberIds.includes(state.filterMember)));
+  return state.events.filter(e => e.date===dateStr && (!state.filterMember || (e.memberIds && e.memberIds.includes(state.filterMember))));
 }
 function esc(s) {
   return String(s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;");
