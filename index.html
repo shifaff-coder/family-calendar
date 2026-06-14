@@ -90,6 +90,21 @@
     .btn-save { background: #7B5DD6; color: #fff; flex: 2; }
     .btn-save:disabled { background: #CCC; cursor: default; }
     .hidden { display: none; }
+
+    /* 予定一覧 */
+    .event-list-section { margin-top: 24px; }
+    .event-list-title { font-size: 13px; font-weight: 700; color: #9B8EC4; letter-spacing: 2px; margin-bottom: 10px; }
+    .event-list-empty { text-align: center; color: #C4B8F0; font-size: 13px; padding: 20px; background: #fff; border-radius: 16px; }
+    .event-list-item { display: flex; align-items: center; gap: 10px; background: #fff; border-radius: 14px; padding: 12px 14px; margin-bottom: 8px; box-shadow: 0 2px 8px rgba(100,80,180,0.07); cursor: pointer; }
+    .event-list-item:active { background: #F8F6FF; }
+    .event-list-date { font-size: 13px; font-weight: 700; color: #7B5DD6; min-width: 36px; text-align: center; }
+    .event-list-date-day { font-size: 18px; font-weight: 800; line-height: 1; }
+    .event-list-date-dow { font-size: 10px; color: #9B8EC4; }
+    .event-list-body { flex: 1; min-width: 0; }
+    .event-list-name { font-size: 14px; font-weight: 600; color: #3D2D6B; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .event-list-members { display: flex; gap: 4px; margin-top: 3px; flex-wrap: wrap; }
+    .event-list-tag { font-size: 11px; border-radius: 10px; padding: 1px 8px; font-weight: 600; }
+    .event-list-emoji { font-size: 20px; }
     .toast { position: fixed; bottom: 30px; left: 50%; transform: translateX(-50%); background: #3D2D6B; color: #fff; border-radius: 20px; padding: 10px 20px; font-size: 13px; z-index: 400; opacity: 0; transition: opacity 0.3s; pointer-events: none; white-space: nowrap; }
     .toast.show { opacity: 1; }
   </style>
@@ -117,6 +132,12 @@
     <div class="days" id="daysGrid"></div>
   </div>
   <div class="legend" id="legend"></div>
+
+  <!-- 予定一覧 -->
+  <div class="event-list-section">
+    <div class="event-list-title">📅 今月の予定一覧</div>
+    <div id="eventList"></div>
+  </div>
 
   <!-- 画像エリア -->
   <div class="photo-section">
@@ -306,6 +327,7 @@ function renderAll() {
   renderFilters();
   renderCalendar();
   renderLegend();
+  renderEventList();
 }
 
 function renderMonthLabel() {
@@ -316,6 +338,52 @@ function renderFilters() {
   document.getElementById("filterRow").innerHTML = MEMBERS.map(m =>
     '<button class="chip" style="background:' + (state.filterMember===m.id?m.color:m.light) + ';color:' + (state.filterMember===m.id?"#fff":m.color) + ';border-color:' + m.color + '" onclick="toggleFilter(\'' + m.id + '\')">' + m.emoji + ' ' + m.label + '</button>'
   ).join("");
+}
+
+function renderEventList() {
+  const { year, month } = state;
+  const prefix = year + "-" + String(month + 1).padStart(2, "0") + "-";
+  const WEEKDAYS_SHORT = ["日","月","火","水","木","金","土"];
+
+  // その月の予定を日付順で取得（フィルター適用）
+  let monthEvents = state.events
+    .filter(e => e.date.startsWith(prefix) && (!state.filterMember || e.memberIds.includes(state.filterMember)))
+    .sort((a, b) => a.date.localeCompare(b.date));
+
+  const container = document.getElementById("eventList");
+  if (monthEvents.length === 0) {
+    container.innerHTML = '<div class="event-list-empty">予定はありません</div>';
+    return;
+  }
+
+  container.innerHTML = monthEvents.map(ev => {
+    const d = parseInt(ev.date.split("-")[2]);
+    const dow = new Date(year, month, d).getDay();
+    const dowColor = dow === 0 ? "#E07B8A" : dow === 6 ? "#4A90D9" : "#9B8EC4";
+    const members = ev.memberIds.map(id => MEMBERS.find(m => m.id === id)).filter(Boolean);
+    const tags = members.map(m =>
+      '<span class="event-list-tag" style="background:' + m.light + ';color:' + m.color + '">' + m.emoji + m.label + '</span>'
+    ).join("");
+
+    return '<div class="event-list-item" onclick="openEditById('' + ev.id + '')">' +
+      '<div class="event-list-date">' +
+        '<div class="event-list-date-day" style="color:' + dowColor + '">' + d + '</div>' +
+        '<div class="event-list-date-dow" style="color:' + dowColor + '">' + WEEKDAYS_SHORT[dow] + '</div>' +
+      '</div>' +
+      '<div class="event-list-emoji">' + ev.categoryEmoji + '</div>' +
+      '<div class="event-list-body">' +
+        '<div class="event-list-name">' + esc(ev.title) + (ev.note ? ' <span style="font-size:11px;color:#9B8EC4">— ' + esc(ev.note) + '</span>' : '') + '</div>' +
+        '<div class="event-list-members">' + tags + '</div>' +
+      '</div>' +
+    '</div>';
+  }).join("");
+}
+
+function openEditById(id) {
+  const ev = state.events.find(x => x.id === id);
+  if (!ev) return;
+  state.modal = { open:true, editId:id, date:ev.date, title:ev.title, memberIds:[...ev.memberIds], emoji:ev.categoryEmoji, note:ev.note||"" };
+  showModal();
 }
 
 function renderLegend() {
