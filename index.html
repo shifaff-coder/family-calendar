@@ -10,7 +10,7 @@
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
     body { font-family: 'Hiragino Sans', 'Meiryo', sans-serif; background: #F8F6FF; min-height: 100vh; }
-    #app { padding: 16px; max-width: 800px; margin: 0 auto; }
+    #app { padding: 16px; max-width: 800px; margin: 0 auto; padding-bottom: 40px; }
 
     .header { text-align: center; margin-bottom: 16px; }
     .header-sub { font-size: 13px; color: #9B8EC4; letter-spacing: 3px; margin-bottom: 6px; }
@@ -18,9 +18,8 @@
     .nav-btn { width: 40px; height: 40px; border-radius: 50%; background: #EDE8FF; border: none; font-size: 22px; color: #7B5DD6; cursor: pointer; font-weight: 700; }
     .month-label { font-size: 26px; font-weight: 700; color: #3D2D6B; }
 
-    /* Sync status */
     .sync-bar { display: flex; align-items: center; justify-content: center; gap: 8px; margin-bottom: 12px; font-size: 12px; color: #9B8EC4; }
-    .sync-dot { width: 8px; height: 8px; border-radius: 50%; background: #CCC; }
+    .sync-dot { width: 8px; height: 8px; border-radius: 50%; background: #CCC; flex-shrink: 0; }
     .sync-dot.ok { background: #5BAD6F; }
     .sync-dot.error { background: #E07B8A; }
     .sync-dot.loading { background: #F0A030; animation: pulse 1s infinite; }
@@ -30,7 +29,7 @@
     .filter-row { display: flex; gap: 8px; justify-content: center; flex-wrap: wrap; margin-bottom: 16px; }
     .chip { border-radius: 20px; padding: 6px 14px; font-size: 13px; font-weight: 600; cursor: pointer; border: 2px solid; transition: all 0.15s; font-family: inherit; }
 
-    .cal-wrap { background: #fff; border-radius: 20px; box-shadow: 0 4px 24px rgba(100,80,180,0.10); overflow: hidden; margin: 0 auto; }
+    .cal-wrap { background: #fff; border-radius: 20px; box-shadow: 0 4px 24px rgba(100,80,180,0.10); overflow: hidden; }
     .weekdays { display: grid; grid-template-columns: repeat(7,1fr); background: #EDE8FF; }
     .weekday { text-align: center; padding: 10px 0; font-weight: 700; font-size: 13px; }
     .days { display: grid; grid-template-columns: repeat(7,1fr); }
@@ -46,6 +45,33 @@
     .legend-item { display: flex; align-items: center; gap: 5px; font-size: 12px; color: #5A4A8A; }
     .legend-dot { width: 10px; height: 10px; border-radius: 50%; }
 
+    /* 画像エリア */
+    .photo-section { margin-top: 24px; }
+    .photo-section-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; }
+    .photo-section-title { font-size: 13px; font-weight: 700; color: #9B8EC4; letter-spacing: 2px; }
+    .photo-section-count { font-size: 12px; color: #C4B8F0; }
+    .photo-upload-btn { background: #EDE8FF; border: none; border-radius: 20px; padding: 6px 14px; font-size: 13px; color: #7B5DD6; cursor: pointer; font-weight: 600; font-family: inherit; }
+    .photo-upload-btn:disabled { background: #F0EDF8; color: #C4B8F0; cursor: default; }
+    .photo-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; }
+    .photo-item { position: relative; border-radius: 12px; overflow: hidden; background: #F0EDF8; aspect-ratio: 4/3; }
+    .photo-item img { width: 100%; height: 100%; object-fit: cover; display: block; cursor: pointer; }
+    .photo-delete-btn { position: absolute; top: 6px; right: 6px; width: 26px; height: 26px; border-radius: 50%; background: rgba(60,40,120,0.7); border: none; color: #fff; font-size: 14px; cursor: pointer; display: flex; align-items: center; justify-content: center; }
+    .photo-empty { border: 2px dashed #C4B8F0; border-radius: 16px; padding: 32px; text-align: center; color: #C4B8F0; }
+    .photo-uploading { display: flex; align-items: center; justify-content: center; gap: 8px; padding: 12px; background: #FAF8FF; border-radius: 12px; font-size: 13px; color: #7B5DD6; }
+    .photo-spinner { animation: spin 1s linear infinite; display: inline-block; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* アップロード選択モーダル */
+    .upload-choice-modal { background: #fff; border-radius: 20px; padding: 22px; width: 100%; max-width: 340px; box-shadow: 0 8px 40px rgba(100,80,180,0.2); }
+    .upload-choice-btn { width: 100%; padding: 16px; border-radius: 14px; border: 2px solid #EDE8FF; background: #FAF8FF; font-size: 16px; font-weight: 600; color: #3D2D6B; cursor: pointer; font-family: inherit; margin-bottom: 10px; display: flex; align-items: center; gap: 12px; }
+    .upload-choice-btn:active { background: #EDE8FF; }
+
+    /* 画像拡大モーダル */
+    .img-viewer { position: fixed; inset: 0; background: rgba(0,0,0,0.9); display: flex; align-items: center; justify-content: center; z-index: 300; padding: 16px; }
+    .img-viewer img { max-width: 100%; max-height: 90vh; border-radius: 8px; object-fit: contain; }
+    .img-viewer-close { position: absolute; top: 16px; right: 16px; width: 40px; height: 40px; border-radius: 50%; background: rgba(255,255,255,0.2); border: none; color: #fff; font-size: 22px; cursor: pointer; }
+
+    /* 予定モーダル */
     .overlay { position: fixed; inset: 0; background: rgba(60,40,120,0.38); display: flex; align-items: center; justify-content: center; z-index: 100; padding: 16px; }
     .modal { background: #fff; border-radius: 20px; padding: 22px; width: 100%; max-width: 440px; box-shadow: 0 8px 40px rgba(100,80,180,0.2); max-height: 90vh; overflow-y: auto; }
     .modal-title { font-weight: 700; font-size: 17px; color: #3D2D6B; margin-bottom: 14px; }
@@ -64,35 +90,8 @@
     .btn-save { background: #7B5DD6; color: #fff; flex: 2; }
     .btn-save:disabled { background: #CCC; cursor: default; }
     .hidden { display: none; }
-
-    /* Toast */
-    .toast { position: fixed; bottom: 30px; left: 50%; transform: translateX(-50%); background: #3D2D6B; color: #fff; border-radius: 20px; padding: 10px 20px; font-size: 13px; z-index: 200; opacity: 0; transition: opacity 0.3s; pointer-events: none; }
+    .toast { position: fixed; bottom: 30px; left: 50%; transform: translateX(-50%); background: #3D2D6B; color: #fff; border-radius: 20px; padding: 10px 20px; font-size: 13px; z-index: 400; opacity: 0; transition: opacity 0.3s; pointer-events: none; white-space: nowrap; }
     .toast.show { opacity: 1; }
-
-    /* Camera import button */
-    .cam-btn { display: flex; align-items: center; justify-content: center; gap: 8px; margin: 0 auto 16px; background: linear-gradient(135deg,#7B5DD6,#E07B8A); color: #fff; border: none; border-radius: 24px; padding: 12px 28px; font-size: 15px; font-weight: 700; cursor: pointer; font-family: inherit; box-shadow: 0 4px 16px rgba(123,93,214,0.3); }
-
-    /* Scan modal */
-    .scan-modal { background: #fff; border-radius: 20px; padding: 22px; width: 100%; max-width: 500px; box-shadow: 0 8px 40px rgba(100,80,180,0.2); max-height: 92vh; overflow-y: auto; }
-    .scan-drop { border: 2px dashed #C4B8F0; border-radius: 16px; padding: 32px 16px; text-align: center; cursor: pointer; margin-bottom: 14px; background: #FAF8FF; transition: background 0.15s; }
-    .scan-drop:hover, .scan-drop.dragover { background: #EDE8FF; }
-    .scan-drop-icon { font-size: 40px; margin-bottom: 8px; }
-    .scan-drop-text { font-size: 14px; color: #7B5DD6; font-weight: 600; }
-    .scan-drop-sub { font-size: 12px; color: #9B8EC4; margin-top: 4px; }
-    .scan-preview { width: 100%; border-radius: 12px; margin-bottom: 14px; max-height: 240px; object-fit: contain; display: none; }
-    .scan-result { margin-bottom: 14px; }
-    .scan-result-title { font-size: 13px; font-weight: 700; color: #3D2D6B; margin-bottom: 8px; }
-    .scan-event-item { background: #FAF8FF; border: 1px solid #EDE8FF; border-radius: 12px; padding: 10px 12px; margin-bottom: 8px; }
-    .scan-event-row { display: flex; align-items: center; gap: 8px; margin-bottom: 6px; }
-    .scan-event-date { font-size: 13px; font-weight: 700; color: #7B5DD6; min-width: 48px; }
-    .scan-event-title-input { flex: 1; border: 1px solid #EDE8FF; border-radius: 8px; padding: 5px 8px; font-size: 13px; color: #3D2D6B; font-family: inherit; outline: none; }
-    .scan-event-title-input:focus { border-color: #7B5DD6; }
-    .scan-member-row { display: flex; gap: 6px; flex-wrap: wrap; }
-    .scan-chip { border-radius: 16px; padding: 3px 10px; font-size: 12px; font-weight: 600; cursor: pointer; border: 2px solid; font-family: inherit; }
-    .scan-remove { background: none; border: none; color: #C4B8F0; font-size: 18px; cursor: pointer; padding: 0 4px; }
-    .scan-loading { text-align: center; padding: 24px; color: #7B5DD6; font-size: 14px; }
-    .scan-loading-icon { font-size: 36px; animation: spin 1.2s linear infinite; display: inline-block; }
-    @keyframes spin { to { transform: rotate(360deg); } }
   </style>
 </head>
 <body>
@@ -106,16 +105,10 @@
     </div>
   </div>
 
-  <!-- 同期ステータス -->
   <div class="sync-bar">
     <div class="sync-dot" id="syncDot"></div>
     <span id="syncText">読み込み中...</span>
     <button class="sync-btn" onclick="syncFromSheet()">🔄 同期</button>
-  </div>
-
-  <!-- 写真取り込みボタン -->
-  <div style="text-align:center;margin-bottom:16px">
-    <button class="cam-btn" onclick="openScanModal()">📷 紙カレンダーを取り込む</button>
   </div>
 
   <div class="filter-row" id="filterRow"></div>
@@ -125,27 +118,27 @@
   </div>
   <div class="legend" id="legend"></div>
 
-  <!-- 紙カレンダー画像表示エリア -->
-  <div style="margin-top:24px">
-    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
-      <div style="font-size:13px;font-weight:700;color:#9B8EC4;letter-spacing:2px">📋 紙カレンダー</div>
-      <div style="display:flex;gap:8px">
-        <button onclick="document.getElementById('photoFileInput').click()" style="background:#EDE8FF;border:none;border-radius:20px;padding:6px 14px;font-size:13px;color:#7B5DD6;cursor:pointer;font-weight:600;font-family:inherit">📷 アップロード</button>
-        <button id="photoDeleteBtn" onclick="deletePhoto()" style="background:#FFE8EC;border:none;border-radius:20px;padding:6px 14px;font-size:13px;color:#E07B8A;cursor:pointer;font-weight:600;font-family:inherit;display:none">🗑️ 削除</button>
+  <!-- 画像エリア -->
+  <div class="photo-section">
+    <div class="photo-section-header">
+      <div>
+        <div class="photo-section-title">📋 画像</div>
+        <div class="photo-section-count" id="photoCount"></div>
       </div>
+      <button class="photo-upload-btn" id="photoUploadBtn" onclick="openUploadChoice()">＋ 追加</button>
     </div>
-    <input type="file" id="photoFileInput" accept="image/*" capture="environment" style="display:none" onchange="onPhotoSelect(event)">
-    <div id="photoArea" style="background:#fff;border-radius:16px;border:2px dashed #C4B8F0;min-height:120px;display:flex;align-items:center;justify-content:center;overflow:hidden">
-      <div id="photoPlaceholder" style="text-align:center;color:#C4B8F0;padding:24px">
-        <div style="font-size:36px;margin-bottom:8px">🗓️</div>
-        <div style="font-size:13px">紙カレンダーの写真をアップロード</div>
-      </div>
-      <img id="photoDisplay" style="width:100%;display:none;border-radius:14px">
+    <div id="photoUploading" class="photo-uploading hidden">
+      <span class="photo-spinner">⏳</span> アップロード中...
+    </div>
+    <div id="photoGrid" class="photo-grid"></div>
+    <div id="photoEmpty" class="photo-empty hidden">
+      <div style="font-size:32px;margin-bottom:8px">🖼️</div>
+      <div style="font-size:13px">画像をアップロードしてください</div>
     </div>
   </div>
 </div>
 
-<!-- Modal -->
+<!-- 予定モーダル -->
 <div class="overlay hidden" id="overlay" onclick="handleOverlayClick(event)">
   <div class="modal" onclick="event.stopPropagation()">
     <div class="modal-title" id="modalTitle"></div>
@@ -165,47 +158,34 @@
   </div>
 </div>
 
-<div class="toast" id="toast"></div>
-
-<!-- Scan Modal -->
-<div class="overlay hidden" id="scanOverlay" onclick="handleScanOverlayClick(event)">
-  <div class="scan-modal" onclick="event.stopPropagation()">
-    <div class="modal-title">📷 紙カレンダーを取り込む</div>
-
-    <label>カレンダーの年月</label>
-    <div style="display:flex;gap:8px;margin-bottom:14px">
-      <select id="scanYear" style="flex:1;padding:10px;border-radius:10px;border:2px solid #EDE8FF;font-size:15px;color:#3D2D6B;font-family:inherit;outline:none"></select>
-      <select id="scanMonth" style="flex:1;padding:10px;border-radius:10px;border:2px solid #EDE8FF;font-size:15px;color:#3D2D6B;font-family:inherit;outline:none"></select>
-    </div>
-
-    <div class="scan-drop" id="scanDrop" onclick="document.getElementById('scanFileInput').click()" ondragover="onDragOver(event)" ondragleave="onDragLeave(event)" ondrop="onDrop(event)">
-      <div class="scan-drop-icon">📸</div>
-      <div class="scan-drop-text">タップして写真を選ぶ</div>
-      <div class="scan-drop-sub">カレンダーの写真をアップロード</div>
-    </div>
-    <input type="file" id="scanFileInput" accept="image/*" style="display:none" onchange="onFileSelect(event)">
-    <img id="scanPreview" class="scan-preview">
-
-    <div class="scan-loading hidden" id="scanLoading">
-      <div class="scan-loading-icon">🔍</div>
-      <div style="margin-top:8px">AIが予定を読み取っています...</div>
-    </div>
-
-    <div class="scan-result hidden" id="scanResult">
-      <div class="scan-result-title">📋 読み取った予定を確認してください</div>
-      <div id="scanEventList"></div>
-      <div style="font-size:12px;color:#9B8EC4;margin-bottom:12px">※ 内容を修正して、メンバーを選んでから追加してください</div>
-    </div>
-
-    <div class="btn-row">
-      <button class="btn btn-cancel" onclick="closeScanModal()">キャンセル</button>
-      <button class="btn btn-save hidden" id="btnScanImport" onclick="importScanEvents()">カレンダーに追加する</button>
-    </div>
+<!-- アップロード選択モーダル -->
+<div class="overlay hidden" id="uploadChoiceOverlay" onclick="if(event.target.id==='uploadChoiceOverlay')closeUploadChoice()">
+  <div class="upload-choice-modal" onclick="event.stopPropagation()">
+    <div class="modal-title">📷 画像を追加</div>
+    <button class="upload-choice-btn" onclick="triggerUpload('camera')">
+      <span style="font-size:24px">📷</span>
+      <div><div style="font-size:15px">カメラで撮影</div><div style="font-size:12px;color:#9B8EC4;font-weight:400">その場で撮影して追加</div></div>
+    </button>
+    <button class="upload-choice-btn" onclick="triggerUpload('file')">
+      <span style="font-size:24px">🖼️</span>
+      <div><div style="font-size:15px">ファイルから選ぶ</div><div style="font-size:12px;color:#9B8EC4;font-weight:400">カメラロール・ファイルアプリから</div></div>
+    </button>
+    <button class="btn btn-cancel" style="width:100%;padding:12px;margin-top:4px" onclick="closeUploadChoice()">キャンセル</button>
+    <input type="file" id="cameraInput" accept="image/*" capture="environment" style="display:none" onchange="onPhotoFileSelected(event)">
+    <input type="file" id="fileInput" accept="image/*" style="display:none" onchange="onPhotoFileSelected(event)">
   </div>
 </div>
 
+<!-- 画像拡大ビュー -->
+<div class="img-viewer hidden" id="imgViewer" onclick="closeImgViewer()">
+  <button class="img-viewer-close" onclick="closeImgViewer()">✕</button>
+  <img id="imgViewerImg" src="" onclick="event.stopPropagation()">
+</div>
+
+<div class="toast" id="toast"></div>
+
 <script>
-const GAS_URL = "https://script.google.com/macros/s/AKfycbxSHuABI6RnsY3cg8kixbKcmBxGF3Wg7S--Y3bkB9bUlvEDx84D1zpcQZXoP5IzyPm6ig/exec";
+const GAS_URL = "https://script.google.com/macros/s/AKfycbyBzR8W7q_BVDfQi5emm2cAlR1CSijbOywsUJeu0ugx6yfid1ErXS4RnWdt7PhY6mTmAw/exec";
 
 const MEMBERS = [
   { id: "papa",  label: "パパ",  emoji: "👨", color: "#4A90D9", light: "#E8F3FC" },
@@ -217,15 +197,20 @@ const MEMBERS = [
 const CATEGORY_EMOJIS = ["📅","🏫","🏥","🎉","🚗","⚽","🎵","🍱","🛒","✈️"];
 const WEEKDAYS = ["日","月","火","水","木","金","土"];
 const MONTHS_JP = ["1月","2月","3月","4月","5月","6月","7月","8月","9月","10月","11月","12月"];
-const LOCAL_KEY = "family-calendar-v3";
+const LOCAL_KEY = "family-calendar-v4";
 
 let state = {
   year: new Date().getFullYear(),
   month: new Date().getMonth(),
   events: [],
   filterMember: null,
+  images: [],
   modal: { open: false, editId: null, date: null, title: "", memberIds: [], emoji: "📅", note: "" }
 };
+
+function currentYearMonth() {
+  return state.year + "-" + String(state.month + 1).padStart(2, "0");
+}
 
 // ── ローカル保存 ──
 function loadLocal() {
@@ -236,34 +221,43 @@ function saveLocal() {
 }
 
 // ── Toast ──
-function showToast(msg, duration = 2000) {
+function showToast(msg, duration = 2500) {
   const t = document.getElementById("toast");
   t.textContent = msg;
   t.classList.add("show");
   setTimeout(() => t.classList.remove("show"), duration);
 }
 
-// ── 同期ステータス表示 ──
+// ── 同期ステータス ──
 function setSyncStatus(status, text) {
-  const dot = document.getElementById("syncDot");
-  dot.className = "sync-dot " + status;
+  document.getElementById("syncDot").className = "sync-dot " + status;
   document.getElementById("syncText").textContent = text;
+}
+
+function nowStr() {
+  const n = new Date();
+  return n.getHours() + ":" + String(n.getMinutes()).padStart(2, "0");
 }
 
 // ── スプレッドシートから読み込み ──
 async function syncFromSheet() {
   setSyncStatus("loading", "同期中...");
   try {
-    const res = await fetch(GAS_URL + "?t=" + Date.now());
-    const data = await res.json();
+    const res = await fetch(GAS_URL + "?action=getEvents&t=" + Date.now(), { redirect: "follow" });
+    const text = await res.text();
+    const data = JSON.parse(text);
     if (data.status === "ok") {
-      state.events = data.events;
+      state.events = (data.events || []).map(ev => ({
+        ...ev,
+        memberIds: Array.isArray(ev.memberIds) ? ev.memberIds :
+          (typeof ev.memberIds === "string" ? JSON.parse(ev.memberIds) : [])
+      }));
       saveLocal();
       renderAll();
       setSyncStatus("ok", "同期済み " + nowStr());
-      showToast("✅ 同期しました");
+      showToast("✅ 同期しました（" + state.events.length + "件）");
     } else {
-      throw new Error(data.message);
+      throw new Error(data.message || "エラー");
     }
   } catch (err) {
     setSyncStatus("error", "同期エラー");
@@ -278,15 +272,18 @@ async function saveToSheet() {
   try {
     const res = await fetch(GAS_URL, {
       method: "POST",
-      body: JSON.stringify({ action: "save", events: state.events }),
+      redirect: "follow",
+      headers: { "Content-Type": "text/plain" },
+      body: JSON.stringify({ action: "saveEvents", events: state.events }),
     });
-    const data = await res.json();
+    const text = await res.text();
+    const data = JSON.parse(text);
     if (data.status === "ok") {
       saveLocal();
       setSyncStatus("ok", "保存済み " + nowStr());
       showToast("💾 保存しました");
     } else {
-      throw new Error(data.message);
+      throw new Error(data.message || "エラー");
     }
   } catch (err) {
     setSyncStatus("error", "保存エラー");
@@ -295,16 +292,12 @@ async function saveToSheet() {
   }
 }
 
-function nowStr() {
-  const n = new Date();
-  return `${n.getHours()}:${String(n.getMinutes()).padStart(2,"0")}`;
-}
-
 // ── 初期化 ──
 function init() {
   state.events = loadLocal();
   renderAll();
   syncFromSheet();
+  loadImages();
 }
 
 // ── 描画 ──
@@ -316,24 +309,19 @@ function renderAll() {
 }
 
 function renderMonthLabel() {
-  document.getElementById("monthLabel").textContent = `${state.year}年 ${MONTHS_JP[state.month]}`;
+  document.getElementById("monthLabel").textContent = state.year + "年 " + MONTHS_JP[state.month];
 }
 
 function renderFilters() {
-  document.getElementById("filterRow").innerHTML = MEMBERS.map(m => `
-    <button class="chip"
-      style="background:${state.filterMember===m.id?m.color:m.light};color:${state.filterMember===m.id?"#fff":m.color};border-color:${m.color}"
-      onclick="toggleFilter('${m.id}')">
-      ${m.emoji} ${m.label}
-    </button>`).join("");
+  document.getElementById("filterRow").innerHTML = MEMBERS.map(m =>
+    '<button class="chip" style="background:' + (state.filterMember===m.id?m.color:m.light) + ';color:' + (state.filterMember===m.id?"#fff":m.color) + ';border-color:' + m.color + '" onclick="toggleFilter(\'' + m.id + '\')">' + m.emoji + ' ' + m.label + '</button>'
+  ).join("");
 }
 
 function renderLegend() {
-  document.getElementById("legend").innerHTML = MEMBERS.map(m => `
-    <div class="legend-item">
-      <div class="legend-dot" style="background:${m.color}"></div>
-      ${m.emoji} ${m.label}
-    </div>`).join("");
+  document.getElementById("legend").innerHTML = MEMBERS.map(m =>
+    '<div class="legend-item"><div class="legend-dot" style="background:' + m.color + '"></div>' + m.emoji + ' ' + m.label + '</div>'
+  ).join("");
 }
 
 function renderCalendar() {
@@ -343,14 +331,14 @@ function renderCalendar() {
   const today = new Date();
 
   document.getElementById("weekdays").innerHTML = WEEKDAYS.map((d, i) =>
-    `<div class="weekday" style="color:${i===0?"#E07B8A":i===6?"#4A90D9":"#5A4A8A"}">${d}</div>`
+    '<div class="weekday" style="color:' + (i===0?"#E07B8A":i===6?"#4A90D9":"#5A4A8A") + '">' + d + '</div>'
   ).join("");
 
   let html = "";
-  for (let i = 0; i < firstDay; i++) html += `<div class="day-cell" style="cursor:default"></div>`;
+  for (let i = 0; i < firstDay; i++) html += '<div class="day-cell" style="cursor:default"></div>';
 
   for (let d = 1; d <= daysInMonth; d++) {
-    const dateStr = `${year}-${String(month+1).padStart(2,"0")}-${String(d).padStart(2,"0")}`;
+    const dateStr = year + "-" + String(month+1).padStart(2,"0") + "-" + String(d).padStart(2,"0");
     const dow = (firstDay + d - 1) % 7;
     const isToday = d===today.getDate() && month===today.getMonth() && year===today.getFullYear();
     const dayEvents = getEventsForDate(dateStr);
@@ -358,24 +346,19 @@ function renderCalendar() {
     const memberSet = new Set(allEvents.flatMap(e => e.memberIds));
     const dotColors = [...memberSet].map(id => MEMBERS.find(m=>m.id===id)?.color).filter(Boolean);
 
-    let pillsHtml = "";
+    let inner = "";
     if (!state.filterMember && dotColors.length > 0) {
-      pillsHtml += `<div class="dots">${dotColors.slice(0,5).map(c=>`<div class="dot" style="background:${c}"></div>`).join("")}</div>`;
+      inner += '<div class="dots">' + dotColors.slice(0,5).map(c=>'<div class="dot" style="background:'+c+'"></div>').join("") + '</div>';
     }
     dayEvents.slice(0,2).forEach(ev => {
       const mem = MEMBERS.find(m=>m.id===ev.memberIds[0]);
-      pillsHtml += `<div class="event-pill"
-        style="background:${mem?.light||"#F0EDF8"};color:${mem?.color||"#5A4A8A"};border-color:${mem?.color||"#CCC"}44"
-        onclick="openEdit('${ev.id}',event)">
-        <span>${ev.categoryEmoji}</span><span style="overflow:hidden;text-overflow:ellipsis">${esc(ev.title)}</span>
-      </div>`;
+      inner += '<div class="event-pill" style="background:' + (mem?.light||"#F0EDF8") + ';color:' + (mem?.color||"#5A4A8A") + ';border-color:' + (mem?.color||"#CCC") + '44" onclick="openEdit(\'' + ev.id + '\',event)"><span>' + ev.categoryEmoji + '</span><span style="overflow:hidden;text-overflow:ellipsis">' + esc(ev.title) + '</span></div>';
     });
-    if (dayEvents.length > 2) pillsHtml += `<div class="more">+${dayEvents.length-2}件</div>`;
+    if (dayEvents.length > 2) inner += '<div class="more">+' + (dayEvents.length-2) + '件</div>';
 
-    html += `<div class="day-cell" style="background:${isToday?"#F0EEFF":"transparent"}" onclick="openAdd('${dateStr}')">
-      <div class="day-num" style="background:${isToday?"#7B5DD6":"transparent"};color:${isToday?"#fff":dow===0?"#E07B8A":dow===6?"#4A90D9":"#3D2D6B"};font-weight:${isToday?800:500}">${d}</div>
-      ${pillsHtml}
-    </div>`;
+    html += '<div class="day-cell" style="background:' + (isToday?"#F0EEFF":"transparent") + '" onclick="openAdd(\'' + dateStr + '\')">' +
+      '<div class="day-num" style="background:' + (isToday?"#7B5DD6":"transparent") + ';color:' + (isToday?"#fff":dow===0?"#E07B8A":dow===6?"#4A90D9":"#3D2D6B") + ';font-weight:' + (isToday?800:500) + '">' + d + '</div>' +
+      inner + '</div>';
   }
   document.getElementById("daysGrid").innerHTML = html;
 }
@@ -392,14 +375,14 @@ function changeMonth(dir) {
   if (state.month < 0) { state.month=11; state.year--; }
   if (state.month > 11) { state.month=0; state.year++; }
   renderAll();
-  loadPhoto();
+  loadImages();
 }
 function toggleFilter(id) {
   state.filterMember = state.filterMember===id ? null : id;
   renderAll();
 }
 
-// ── モーダル ──
+// ── 予定モーダル ──
 function openAdd(dateStr) {
   state.modal = { open:true, editId:null, date:dateStr, title:"", memberIds:[], emoji:"📅", note:"" };
   showModal();
@@ -414,9 +397,7 @@ function openEdit(id, e) {
 function showModal() {
   const m = state.modal;
   document.getElementById("overlay").classList.remove("hidden");
-  document.getElementById("modalTitle").innerHTML = m.editId
-    ? "✏️ 予定を編集"
-    : `📋 予定を追加 <span class="modal-date">${m.date}</span>`;
+  document.getElementById("modalTitle").innerHTML = m.editId ? "✏️ 予定を編集" : '📋 予定を追加 <span class="modal-date">' + m.date + '</span>';
   document.getElementById("formTitle").value = m.title;
   document.getElementById("formNote").value = m.note;
   document.getElementById("btnSave").textContent = m.editId ? "保存する" : "追加する";
@@ -427,21 +408,17 @@ function showModal() {
 }
 function renderFormMembers() {
   const m = state.modal;
-  document.getElementById("formMembers").innerHTML = MEMBERS.map(mem => `
-    <button class="chip"
-      style="background:${m.memberIds.includes(mem.id)?mem.color:mem.light};color:${m.memberIds.includes(mem.id)?"#fff":mem.color};border-color:${mem.color};font-size:14px"
-      onclick="toggleFormMember('${mem.id}')">
-      ${mem.emoji} ${mem.label}
-    </button>`).join("");
+  document.getElementById("formMembers").innerHTML = MEMBERS.map(mem =>
+    '<button class="chip" style="background:' + (m.memberIds.includes(mem.id)?mem.color:mem.light) + ';color:' + (m.memberIds.includes(mem.id)?"#fff":mem.color) + ';border-color:' + mem.color + ';font-size:14px" onclick="toggleFormMember(\'' + mem.id + '\')">' + mem.emoji + ' ' + mem.label + '</button>'
+  ).join("");
 }
 function renderFormEmojis() {
-  const m = state.modal;
-  document.getElementById("formEmojis").innerHTML = CATEGORY_EMOJIS.map(em => `
-    <button class="emoji-btn ${m.emoji===em?"selected":""}" onclick="selectEmoji('${em}')">${em}</button>`).join("");
+  document.getElementById("formEmojis").innerHTML = CATEGORY_EMOJIS.map(em =>
+    '<button class="emoji-btn ' + (state.modal.emoji===em?"selected":"") + '" onclick="selectEmoji(\'' + em + '\')">' + em + '</button>'
+  ).join("");
 }
 function closeModal() {
   document.getElementById("overlay").classList.add("hidden");
-  state.modal.open = false;
 }
 function handleOverlayClick(e) { if (e.target.id==="overlay") closeModal(); }
 function toggleFormMember(id) {
@@ -453,22 +430,20 @@ function selectEmoji(em) {
   state.modal.emoji = em;
   renderFormEmojis();
 }
-
 async function saveEvent() {
   const m = state.modal;
   const title = document.getElementById("formTitle").value.trim();
   const note = document.getElementById("formNote").value.trim();
-  if (!title || m.memberIds.length===0) { alert("タイトルと対象メンバーを選んでください"); return; }
+  if (!title || m.memberIds.length===0) { alert("タイトルとメンバーを選んでください"); return; }
   if (m.editId) {
     state.events = state.events.map(e => e.id===m.editId ? {...e, title, memberIds:m.memberIds, categoryEmoji:m.emoji, note} : e);
   } else {
-    state.events.push({ id: Date.now().toString(), date:m.date, title, memberIds:m.memberIds, categoryEmoji:m.emoji, note });
+    state.events.push({ id: Date.now().toString() + Math.random(), date:m.date, title, memberIds:m.memberIds, categoryEmoji:m.emoji, note });
   }
   closeModal();
   renderAll();
   await saveToSheet();
 }
-
 async function deleteEvent() {
   if (!confirm("この予定を削除しますか？")) return;
   state.events = state.events.filter(e => e.id!==state.modal.editId);
@@ -477,278 +452,157 @@ async function deleteEvent() {
   await saveToSheet();
 }
 
-// ── 紙カレンダー画像表示（月別） ──
-function photoKey() {
-  return "family-cal-photo-" + state.year + "-" + String(state.month + 1).padStart(2, "0");
-}
-
-function loadPhoto() {
+// ── 画像機能 ──
+async function loadImages() {
+  const ym = currentYearMonth();
+  document.getElementById("photoGrid").innerHTML = "";
+  document.getElementById("photoEmpty").classList.add("hidden");
+  document.getElementById("photoCount").textContent = "";
   try {
-    const saved = localStorage.getItem(photoKey());
-    if (saved) {
-      document.getElementById("photoDisplay").src = saved;
-      document.getElementById("photoDisplay").style.display = "block";
-      document.getElementById("photoPlaceholder").style.display = "none";
-      document.getElementById("photoDeleteBtn").style.display = "";
-    } else {
-      document.getElementById("photoDisplay").src = "";
-      document.getElementById("photoDisplay").style.display = "none";
-      document.getElementById("photoPlaceholder").style.display = "";
-      document.getElementById("photoDeleteBtn").style.display = "none";
+    const res = await fetch(GAS_URL + "?action=getImages&yearMonth=" + ym + "&t=" + Date.now(), { redirect: "follow" });
+    const text = await res.text();
+    const data = JSON.parse(text);
+    if (data.status === "ok") {
+      state.images = data.images || [];
+      renderImages();
     }
-  } catch {}
-}
-
-function onPhotoSelect(e) {
-  const file = e.target.files[0];
-  if (!file) return;
-  const reader = new FileReader();
-  reader.onload = (ev) => {
-    const dataUrl = ev.target.result;
-    document.getElementById("photoDisplay").src = dataUrl;
-    document.getElementById("photoDisplay").style.display = "block";
-    document.getElementById("photoPlaceholder").style.display = "none";
-    document.getElementById("photoDeleteBtn").style.display = "";
-    try {
-      localStorage.setItem(photoKey(), dataUrl);
-      showToast("📷 " + state.year + "年" + (state.month+1) + "月の画像を保存しました");
-    } catch {
-      showToast("⚠️ 画像が大きすぎて保存できません");
-    }
-  };
-  reader.readAsDataURL(file);
-}
-
-function deletePhoto() {
-  if (!confirm("この月の紙カレンダー画像を削除しますか？")) return;
-  document.getElementById("photoDisplay").src = "";
-  document.getElementById("photoDisplay").style.display = "none";
-  document.getElementById("photoPlaceholder").style.display = "";
-  document.getElementById("photoDeleteBtn").style.display = "none";
-  document.getElementById("photoFileInput").value = "";
-  try { localStorage.removeItem(photoKey()); } catch {}
-}
-
-// ── 写真取り込み機能 ──
-let scanImageBase64 = null;
-let scanEvents = [];
-
-function openScanModal() {
-  // 年月セレクト初期化
-  const yearSel = document.getElementById("scanYear");
-  const monthSel = document.getElementById("scanMonth");
-  yearSel.innerHTML = "";
-  const curYear = new Date().getFullYear();
-  for (let y = curYear - 1; y <= curYear + 1; y++) {
-    yearSel.innerHTML += `<option value="${y}" ${y===state.year?"selected":""}>${y}年</option>`;
+  } catch(err) {
+    console.error("loadImages error:", err);
+    renderImages();
   }
-  monthSel.innerHTML = MONTHS_JP.map((m, i) =>
-    `<option value="${i}" ${i===state.month?"selected":""}>${m}</option>`
+}
+
+function renderImages() {
+  const grid = document.getElementById("photoGrid");
+  const empty = document.getElementById("photoEmpty");
+  const count = document.getElementById("photoCount");
+  const btn = document.getElementById("photoUploadBtn");
+
+  const imgs = state.images;
+  count.textContent = imgs.length + " / 10枚";
+  btn.disabled = imgs.length >= 10;
+
+  if (imgs.length === 0) {
+    grid.innerHTML = "";
+    empty.classList.remove("hidden");
+    return;
+  }
+  empty.classList.add("hidden");
+  grid.innerHTML = imgs.map((img, i) =>
+    '<div class="photo-item">' +
+      '<img src="' + img.url + '" loading="lazy" onclick="openImgViewer(\'' + img.url + '\')" onerror="this.src=\'data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 75%22><rect fill=%22%23EDE8FF%22 width=%22100%22 height=%22100%22/><text x=%2250%22 y=%2242%22 text-anchor=%22middle%22 fill=%22%237B5DD6%22 font-size=%2212%22>読込中</text></svg>\'">' +
+      '<button class="photo-delete-btn" onclick="deleteImage(\'' + img.fileId + '\',event)">✕</button>' +
+    '</div>'
   ).join("");
-
-  // リセット
-  scanImageBase64 = null;
-  scanEvents = [];
-  document.getElementById("scanPreview").style.display = "none";
-  document.getElementById("scanPreview").src = "";
-  document.getElementById("scanLoading").classList.add("hidden");
-  document.getElementById("scanResult").classList.add("hidden");
-  document.getElementById("btnScanImport").classList.add("hidden");
-  document.getElementById("scanDrop").style.display = "";
-  document.getElementById("scanFileInput").value = "";
-
-  document.getElementById("scanOverlay").classList.remove("hidden");
 }
 
-function closeScanModal() {
-  document.getElementById("scanOverlay").classList.add("hidden");
+function openUploadChoice() {
+  if (state.images.length >= 10) { showToast("この月は最大10枚までです"); return; }
+  document.getElementById("uploadChoiceOverlay").classList.remove("hidden");
 }
-function handleScanOverlayClick(e) {
-  if (e.target.id === "scanOverlay") closeScanModal();
+function closeUploadChoice() {
+  document.getElementById("uploadChoiceOverlay").classList.add("hidden");
 }
-function onDragOver(e) { e.preventDefault(); document.getElementById("scanDrop").classList.add("dragover"); }
-function onDragLeave(e) { document.getElementById("scanDrop").classList.remove("dragover"); }
-function onDrop(e) {
-  e.preventDefault();
-  document.getElementById("scanDrop").classList.remove("dragover");
-  const file = e.dataTransfer.files[0];
-  if (file && file.type.startsWith("image/")) processImageFile(file);
+function triggerUpload(type) {
+  closeUploadChoice();
+  if (type === "camera") {
+    document.getElementById("cameraInput").click();
+  } else {
+    document.getElementById("fileInput").click();
+  }
 }
-function onFileSelect(e) {
+
+function onPhotoFileSelected(e) {
   const file = e.target.files[0];
-  if (file) processImageFile(file);
+  e.target.value = "";
+  if (!file) return;
+  uploadImage(file);
 }
 
-function processImageFile(file) {
-  const reader = new FileReader();
-  reader.onload = (e) => {
-    const dataUrl = e.target.result;
-    // プレビュー表示
-    const preview = document.getElementById("scanPreview");
-    preview.src = dataUrl;
-    preview.style.display = "block";
-    document.getElementById("scanDrop").style.display = "none";
-    // base64部分だけ取り出す
-    scanImageBase64 = dataUrl.split(",")[1];
-    const mimeType = file.type;
-    analyzeImage(scanImageBase64, mimeType);
-  };
-  reader.readAsDataURL(file);
-}
+async function uploadImage(file) {
+  if (state.images.length >= 10) { showToast("この月は最大10枚までです"); return; }
 
-async function analyzeImage(base64, mimeType) {
-  document.getElementById("scanLoading").classList.remove("hidden");
-  document.getElementById("scanResult").classList.add("hidden");
-  document.getElementById("btnScanImport").classList.add("hidden");
-
-  const scanYear = document.getElementById("scanYear").value;
-  const scanMonth = parseInt(document.getElementById("scanMonth").value);
-  const monthLabel = MONTHS_JP[scanMonth];
+  document.getElementById("photoUploading").classList.remove("hidden");
+  document.getElementById("photoUploadBtn").disabled = true;
 
   try {
-    const response = await fetch("https://api.anthropic.com/v1/messages", {
+    const base64 = await fileToBase64(file);
+    const filename = currentYearMonth() + "_" + Date.now() + "." + file.name.split(".").pop();
+
+    const res = await fetch(GAS_URL, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      redirect: "follow",
+      headers: { "Content-Type": "text/plain" },
       body: JSON.stringify({
-        model: "claude-sonnet-4-6",
-        max_tokens: 1000,
-        messages: [{
-          role: "user",
-          content: [
-            {
-              type: "image",
-              source: { type: "base64", media_type: mimeType, data: base64 }
-            },
-            {
-              type: "text",
-              text: `これは${scanYear}年${monthLabel}の紙のカレンダーです。カレンダーに書かれているすべての予定・イベントを読み取ってください。
-
-必ずJSON形式のみで返答してください。余分なテキストは不要です。
-形式：
-{"events":[{"day":15,"title":"予定名"},{"day":20,"title":"別の予定"}]}
-
-- dayは日にち（数字）
-- titleは予定の内容（カレンダーに書いてある文字をそのまま）
-- 何も書いていない日は含めない
-- 読み取れない場合は{"events":[]}`
-            }
-          ]
-        }]
-      })
+        action: "uploadImage",
+        yearMonth: currentYearMonth(),
+        filename,
+        base64,
+        mimeType: file.type,
+      }),
     });
+    const text = await res.text();
+    const data = JSON.parse(text);
 
-    const data = await response.json();
-    const text = data.content.map(c => c.text || "").join("");
-    const clean = text.replace(/```json|```/g, "").trim();
-    const parsed = JSON.parse(clean);
+    if (data.status === "ok") {
+      state.images.push({ fileId: data.fileId, url: data.url, filename: data.filename, createdAt: new Date().toISOString() });
+      renderImages();
+      showToast("🖼️ 画像をアップロードしました");
+    } else {
+      showToast("⚠️ " + (data.message || "アップロード失敗"));
+    }
+  } catch(err) {
+    showToast("⚠️ アップロードに失敗しました");
+    console.error(err);
+  } finally {
+    document.getElementById("photoUploading").classList.add("hidden");
+    document.getElementById("photoUploadBtn").disabled = state.images.length >= 10;
+  }
+}
 
-    scanEvents = (parsed.events || []).map((ev, i) => ({
-      tempId: "scan_" + i,
-      day: ev.day,
-      title: ev.title,
-      memberIds: [],
-      emoji: "📅",
-    }));
-
-    document.getElementById("scanLoading").classList.add("hidden");
-    renderScanResults(parseInt(scanYear), scanMonth);
-
-  } catch (err) {
-    document.getElementById("scanLoading").classList.add("hidden");
-    showToast("⚠️ 読み取りに失敗しました。もう一度お試しください。");
+async function deleteImage(fileId, e) {
+  e.stopPropagation();
+  if (!confirm("この画像を削除しますか？")) return;
+  try {
+    const res = await fetch(GAS_URL, {
+      method: "POST",
+      redirect: "follow",
+      headers: { "Content-Type": "text/plain" },
+      body: JSON.stringify({ action: "deleteImage", fileId }),
+    });
+    const text = await res.text();
+    const data = JSON.parse(text);
+    if (data.status === "ok") {
+      state.images = state.images.filter(img => img.fileId !== fileId);
+      renderImages();
+      showToast("🗑️ 削除しました");
+    } else {
+      showToast("⚠️ 削除に失敗しました");
+    }
+  } catch(err) {
+    showToast("⚠️ 削除に失敗しました");
     console.error(err);
   }
 }
 
-function renderScanResults(year, month) {
-  if (scanEvents.length === 0) {
-    showToast("予定が見つかりませんでした");
-    return;
-  }
-
-  document.getElementById("scanResult").classList.remove("hidden");
-  document.getElementById("btnScanImport").classList.remove("hidden");
-
-  const list = document.getElementById("scanEventList");
-  list.innerHTML = scanEvents.map((ev, idx) => {
-    const dateStr = `${year}-${String(month+1).padStart(2,"0")}-${String(ev.day).padStart(2,"0")}`;
-    return `
-    <div class="scan-event-item" id="scanItem_${idx}">
-      <div class="scan-event-row">
-        <span class="scan-event-date">${month+1}/${ev.day}</span>
-        <input class="scan-event-title-input" value="${esc(ev.title)}" oninput="updateScanTitle(${idx},this.value)" placeholder="予定名">
-        <button class="scan-remove" onclick="removeScanEvent(${idx})">×</button>
-      </div>
-      <div class="scan-member-row" id="scanMembers_${idx}">
-        ${MEMBERS.map(m => `
-          <button class="scan-chip"
-            style="background:${ev.memberIds.includes(m.id)?m.color:m.light};color:${ev.memberIds.includes(m.id)?"#fff":m.color};border-color:${m.color}"
-            onclick="toggleScanMember(${idx},'${m.id}')">
-            ${m.emoji}${m.label}
-          </button>`).join("")}
-      </div>
-    </div>`;
-  }).join("");
-}
-
-function updateScanTitle(idx, val) { scanEvents[idx].title = val; }
-
-function removeScanEvent(idx) {
-  scanEvents.splice(idx, 1);
-  const scanYear = parseInt(document.getElementById("scanYear").value);
-  const scanMonth = parseInt(document.getElementById("scanMonth").value);
-  renderScanResults(scanYear, scanMonth);
-  if (scanEvents.length === 0) {
-    document.getElementById("scanResult").classList.add("hidden");
-    document.getElementById("btnScanImport").classList.add("hidden");
-  }
-}
-
-function toggleScanMember(idx, memberId) {
-  const ev = scanEvents[idx];
-  ev.memberIds = ev.memberIds.includes(memberId)
-    ? ev.memberIds.filter(x => x !== memberId)
-    : [...ev.memberIds, memberId];
-  // メンバーボタンだけ再描画
-  const row = document.getElementById("scanMembers_" + idx);
-  row.innerHTML = MEMBERS.map(m => `
-    <button class="scan-chip"
-      style="background:${ev.memberIds.includes(m.id)?m.color:m.light};color:${ev.memberIds.includes(m.id)?"#fff":m.color};border-color:${m.color}"
-      onclick="toggleScanMember(${idx},'${m.id}')">
-      ${m.emoji}${m.label}
-    </button>`).join("");
-}
-
-async function importScanEvents() {
-  const scanYear = parseInt(document.getElementById("scanYear").value);
-  const scanMonth = parseInt(document.getElementById("scanMonth").value);
-
-  const toAdd = scanEvents.filter(ev => ev.title.trim() && ev.memberIds.length > 0);
-  if (toAdd.length === 0) {
-    alert("メンバーが選ばれていない予定があります。\n全ての予定にメンバーを選んでください。");
-    return;
-  }
-  const skipped = scanEvents.length - toAdd.length;
-
-  toAdd.forEach(ev => {
-    const dateStr = `${scanYear}-${String(scanMonth+1).padStart(2,"0")}-${String(ev.day).padStart(2,"0")}`;
-    state.events.push({
-      id: Date.now().toString() + Math.random(),
-      date: dateStr,
-      title: ev.title.trim(),
-      memberIds: ev.memberIds,
-      categoryEmoji: ev.emoji,
-      note: "",
-    });
+function fileToBase64(file) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = e => resolve(e.target.result.split(",")[1]);
+    reader.onerror = reject;
+    reader.readAsDataURL(file);
   });
-
-  closeScanModal();
-  renderAll();
-  await saveToSheet();
-  showToast(`✅ ${toAdd.length}件の予定を追加しました${skipped>0?" ("+skipped+"件スキップ)":""}`);
 }
 
-loadPhoto();
+function openImgViewer(url) {
+  document.getElementById("imgViewerImg").src = url;
+  document.getElementById("imgViewer").classList.remove("hidden");
+}
+function closeImgViewer() {
+  document.getElementById("imgViewer").classList.add("hidden");
+  document.getElementById("imgViewerImg").src = "";
+}
+
 init();
 </script>
 </body>
