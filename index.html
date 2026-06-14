@@ -603,28 +603,34 @@ async function uploadImage(file) {
     const id = Date.now().toString() + Math.floor(Math.random()*1000);
     const filename = currentYearMonth() + "_" + id + ".jpg";
     const ym = currentYearMonth();
-    const CHUNK = 30000; // 30KBずつ送信
+    const CHUNK = 20000; // 20KBずつ送信
 
     // チャンク分割
     const chunks = [];
     for (let i = 0; i < base64.length; i += CHUNK) {
       chunks.push(base64.slice(i, i + CHUNK));
     }
+    console.log("チャンク数: " + chunks.length + " 合計サイズ: " + base64.length);
 
-    // chunk=0: 新規作成
+    // 順番に送信
     let rowIndex = null;
     for (let i = 0; i < chunks.length; i++) {
-      const isFirst = i === 0;
-      const isDone = i === chunks.length - 1;
+      const isFirst = (i === 0);
+      const isDone = (i === chunks.length - 1);
+
       const body = {
         action: "uploadImageChunk",
-        id, yearMonth: ym, filename,
+        id: id,
+        yearMonth: ym,
+        filename: filename,
         mimeType: "image/jpeg",
         chunk: i,
         data: chunks[i],
         done: isDone,
+        rowIndex: rowIndex,
       };
-      if (!isFirst) body.rowIndex = rowIndex;
+
+      console.log("チャンク送信 " + i + "/" + (chunks.length-1) + " rowIndex=" + rowIndex);
 
       const res = await fetch(GAS_URL, {
         method: "POST",
@@ -633,16 +639,20 @@ async function uploadImage(file) {
         body: JSON.stringify(body),
       });
       const text = await res.text();
+      console.log("チャンク" + i + "応答: " + text);
       const result = JSON.parse(text);
-      if (result.status !== "ok") throw new Error(result.message || "チャンク送信失敗");
-      if (isFirst) rowIndex = result.rowIndex;
+      if (result.status !== "ok") {
+        throw new Error(result.message || "チャンク" + i + "送信失敗");
+      }
+      // rowIndexを必ず更新
+      if (result.rowIndex) rowIndex = result.rowIndex;
     }
 
     await loadImages();
     showToast("🖼️ 画像をアップロードしました");
   } catch(err) {
-    showToast("⚠️ アップロードに失敗しました: " + err.message);
-    console.error(err);
+    showToast("⚠️ " + err.message);
+    console.error("uploadImage error:", err);
   } finally {
     document.getElementById("photoUploading").classList.add("hidden");
     document.getElementById("photoUploadBtn").disabled = state.images.length >= 10;
