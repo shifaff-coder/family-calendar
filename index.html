@@ -385,9 +385,9 @@ function renderEventList() {
 }
 
 function openEditById(id) {
-  const ev = state.events.find(x => x.id === id);
+  const ev = state.events.find(x => String(x.id) === String(id));
   if (!ev) return;
-  state.modal = { open:true, editId:id, date:ev.date, title:ev.title, memberIds:[...ev.memberIds], emoji:ev.categoryEmoji, note:ev.note||"" };
+  state.modal = { open:true, editId:String(ev.id), date:ev.date, title:ev.title, memberIds:[...ev.memberIds], emoji:ev.categoryEmoji, note:ev.note||"" };
   showModal();
 }
 
@@ -462,9 +462,9 @@ function openAdd(dateStr) {
 }
 function openEdit(id, e) {
   e.stopPropagation();
-  const ev = state.events.find(x=>x.id===id);
+  const ev = state.events.find(x=>String(x.id)===String(id));
   if (!ev) return;
-  state.modal = { open:true, editId:id, date:ev.date, title:ev.title, memberIds:[...ev.memberIds], emoji:ev.categoryEmoji, note:ev.note||"" };
+  state.modal = { open:true, editId:String(ev.id), date:ev.date, title:ev.title, memberIds:[...ev.memberIds], emoji:ev.categoryEmoji, note:ev.note||"" };
   showModal();
 }
 function showModal() {
@@ -509,7 +509,7 @@ async function saveEvent() {
   const note = document.getElementById("formNote").value.trim();
   if (!title || m.memberIds.length===0) { alert("タイトルとメンバーを選んでください"); return; }
   if (m.editId) {
-    state.events = state.events.map(e => e.id===m.editId ? {...e, title, memberIds:m.memberIds, categoryEmoji:m.emoji, note} : e);
+    state.events = state.events.map(e => String(e.id)===String(m.editId) ? {...e, title, memberIds:m.memberIds, categoryEmoji:m.emoji, note} : e);
   } else {
     state.events.push({ id: Date.now().toString() + Math.random(), date:m.date, title, memberIds:m.memberIds, categoryEmoji:m.emoji, note });
   }
@@ -519,7 +519,7 @@ async function saveEvent() {
 }
 async function deleteEvent() {
   if (!confirm("この予定を削除しますか？")) return;
-  state.events = state.events.filter(e => e.id!==state.modal.editId);
+  state.events = state.events.filter(e => String(e.id)!==String(state.modal.editId));
   closeModal();
   renderAll();
   await saveToSheet();
@@ -665,8 +665,26 @@ async function deleteImage(id, idx, e) {
 
 function fileToBase64(file) {
   return new Promise((resolve, reject) => {
+    const img = new Image();
     const reader = new FileReader();
-    reader.onload = e => resolve(e.target.result.split(",")[1]);
+    reader.onload = ev => {
+      img.onload = () => {
+        // 最大1200pxに縮小、JPEG品質0.7で圧縮
+        const MAX = 1200;
+        let w = img.width, h = img.height;
+        if (w > MAX || h > MAX) {
+          if (w > h) { h = Math.round(h * MAX / w); w = MAX; }
+          else { w = Math.round(w * MAX / h); h = MAX; }
+        }
+        const canvas = document.createElement("canvas");
+        canvas.width = w; canvas.height = h;
+        canvas.getContext("2d").drawImage(img, 0, 0, w, h);
+        const dataUrl = canvas.toDataURL("image/jpeg", 0.7);
+        resolve(dataUrl.split(",")[1]);
+      };
+      img.onerror = reject;
+      img.src = ev.target.result;
+    };
     reader.onerror = reject;
     reader.readAsDataURL(file);
   });
