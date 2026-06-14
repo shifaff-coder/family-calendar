@@ -370,7 +370,7 @@ function renderEventList() {
       '<span class="event-list-tag" style="background:' + m.light + ';color:' + m.color + '">' + m.emoji + m.label + '</span>'
     ).join("");
 
-    return '<div class="event-list-item" onclick="openEditById('' + ev.id + '')">' +
+    return '<div class="event-list-item" onclick="openEditById(\'' + ev.id + '\')">' +
       '<div class="event-list-date">' +
         '<div class="event-list-date-day" style="color:' + dowColor + '">' + d + '</div>' +
         '<div class="event-list-date-dow" style="color:' + dowColor + '">' + WEEKDAYS_SHORT[dow] + '</div>' +
