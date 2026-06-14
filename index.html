@@ -29,16 +29,16 @@
     .filter-row { display: flex; gap: 8px; justify-content: center; flex-wrap: wrap; margin-bottom: 16px; }
     .chip { border-radius: 20px; padding: 6px 14px; font-size: 13px; font-weight: 600; cursor: pointer; border: 2px solid; transition: all 0.15s; font-family: inherit; }
 
-    .cal-wrap { background: #fff; border-radius: 20px; box-shadow: 0 4px 24px rgba(100,80,180,0.10); overflow: hidden; }
+    .cal-wrap { background: #fff; border-radius: 20px; box-shadow: 0 4px 24px rgba(100,80,180,0.10); overflow: hidden; width: 100%; table-layout: fixed; }
     .weekdays { display: grid; grid-template-columns: repeat(7,1fr); background: #EDE8FF; }
-    .weekday { text-align: center; padding: 10px 0; font-weight: 700; font-size: 13px; }
+    .weekday { text-align: center; padding: 10px 0; font-weight: 700; font-size: 13px; white-space: nowrap; overflow: hidden; }
     .days { display: grid; grid-template-columns: repeat(7,1fr); }
-    .day-cell { min-height: 80px; padding: 5px 4px 4px 6px; border-bottom: 1px solid #F0EDF8; border-right: 1px solid #F0EDF8; cursor: pointer; transition: background 0.12s; }
+    .day-cell { height: 80px; padding: 5px 4px 4px 6px; border-bottom: 1px solid #F0EDF8; border-right: 1px solid #F0EDF8; cursor: pointer; transition: background 0.12s; overflow: hidden; }
     .day-cell:active { background: #EDE8FF !important; }
-    .day-num { width: 26px; height: 26px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 14px; font-weight: 500; margin-bottom: 3px; }
+    .day-num { width: 22px; height: 22px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 500; margin-bottom: 2px; flex-shrink: 0; }
     .dots { display: flex; gap: 3px; flex-wrap: wrap; margin-bottom: 2px; }
     .dot { width: 7px; height: 7px; border-radius: 50%; }
-    .event-pill { font-size: 11px; border-radius: 6px; padding: 2px 5px; margin-bottom: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; cursor: pointer; border: 1px solid; display: flex; align-items: center; gap: 2px; }
+    .event-pill { font-size: 10px; border-radius: 6px; padding: 1px 4px; margin-bottom: 1px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; cursor: pointer; border: 1px solid; display: flex; align-items: center; gap: 2px; max-width: 100%; }
     .more { font-size: 11px; color: #9B8EC4; }
 
     .legend { display: flex; gap: 14px; justify-content: center; flex-wrap: wrap; margin-top: 16px; }
