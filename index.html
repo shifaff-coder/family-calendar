@@ -124,6 +124,25 @@
     <div class="days" id="daysGrid"></div>
   </div>
   <div class="legend" id="legend"></div>
+
+  <!-- 紙カレンダー画像表示エリア -->
+  <div style="margin-top:24px">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
+      <div style="font-size:13px;font-weight:700;color:#9B8EC4;letter-spacing:2px">📋 紙カレンダー</div>
+      <div style="display:flex;gap:8px">
+        <button onclick="document.getElementById('photoFileInput').click()" style="background:#EDE8FF;border:none;border-radius:20px;padding:6px 14px;font-size:13px;color:#7B5DD6;cursor:pointer;font-weight:600;font-family:inherit">📷 アップロード</button>
+        <button id="photoDeleteBtn" onclick="deletePhoto()" style="background:#FFE8EC;border:none;border-radius:20px;padding:6px 14px;font-size:13px;color:#E07B8A;cursor:pointer;font-weight:600;font-family:inherit;display:none">🗑️ 削除</button>
+      </div>
+    </div>
+    <input type="file" id="photoFileInput" accept="image/*" capture="environment" style="display:none" onchange="onPhotoSelect(event)">
+    <div id="photoArea" style="background:#fff;border-radius:16px;border:2px dashed #C4B8F0;min-height:120px;display:flex;align-items:center;justify-content:center;overflow:hidden">
+      <div id="photoPlaceholder" style="text-align:center;color:#C4B8F0;padding:24px">
+        <div style="font-size:36px;margin-bottom:8px">🗓️</div>
+        <div style="font-size:13px">紙カレンダーの写真をアップロード</div>
+      </div>
+      <img id="photoDisplay" style="width:100%;display:none;border-radius:14px">
+    </div>
+  </div>
 </div>
 
 <!-- Modal -->
@@ -457,6 +476,48 @@ async function deleteEvent() {
   await saveToSheet();
 }
 
+// ── 紙カレンダー画像表示 ──
+const PHOTO_KEY = "family-calendar-photo";
+
+function loadPhoto() {
+  try {
+    const saved = localStorage.getItem(PHOTO_KEY);
+    if (saved) {
+      document.getElementById("photoDisplay").src = saved;
+      document.getElementById("photoDisplay").style.display = "block";
+      document.getElementById("photoPlaceholder").style.display = "none";
+      document.getElementById("photoDeleteBtn").style.display = "";
+    }
+  } catch {}
+}
+
+function onPhotoSelect(e) {
+  const file = e.target.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = (ev) => {
+    const dataUrl = ev.target.result;
+    document.getElementById("photoDisplay").src = dataUrl;
+    document.getElementById("photoDisplay").style.display = "block";
+    document.getElementById("photoPlaceholder").style.display = "none";
+    document.getElementById("photoDeleteBtn").style.display = "";
+    try { localStorage.setItem(PHOTO_KEY, dataUrl); } catch {
+      showToast("⚠️ 画像が大きすぎて保存できません");
+    }
+  };
+  reader.readAsDataURL(file);
+}
+
+function deletePhoto() {
+  if (!confirm("紙カレンダーの画像を削除しますか？")) return;
+  document.getElementById("photoDisplay").src = "";
+  document.getElementById("photoDisplay").style.display = "none";
+  document.getElementById("photoPlaceholder").style.display = "";
+  document.getElementById("photoDeleteBtn").style.display = "none";
+  document.getElementById("photoFileInput").value = "";
+  try { localStorage.removeItem(PHOTO_KEY); } catch {}
+}
+
 // ── 写真取り込み機能 ──
 let scanImageBase64 = null;
 let scanEvents = [];
@@ -676,6 +737,7 @@ async function importScanEvents() {
   showToast(`✅ ${toAdd.length}件の予定を追加しました${skipped>0?" ("+skipped+"件スキップ)":""}`);
 }
 
+loadPhoto();
 init();
 </script>
 </body>
