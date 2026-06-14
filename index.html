@@ -126,6 +126,13 @@
     <button class="sync-btn" onclick="syncFromSheet()">🔄 同期</button>
   </div>
 
+  <!-- トークン未設定時の警告 -->
+  <div id="tokenWarning" class="hidden" style="background:#FEF3E2;border:1px solid #F0A030;border-radius:12px;padding:12px 16px;margin-bottom:12px;display:flex;align-items:center;gap:10px;font-size:13px;color:#7A4F00">
+    <span style="font-size:20px">⚠️</span>
+    <div style="flex:1">画像アップロードにGitHubトークンが必要です</div>
+    <button onclick="openTokenModal()" style="background:#F0A030;border:none;border-radius:20px;padding:5px 12px;font-size:12px;color:#fff;cursor:pointer;font-weight:700;font-family:inherit">設定</button>
+  </div>
+
   <div class="filter-row" id="filterRow"></div>
   <div class="cal-wrap">
     <div class="weekdays" id="weekdays"></div>
@@ -205,10 +212,31 @@
   <img id="imgViewerImg" src="" onclick="event.stopPropagation()">
 </div>
 
+<!-- トークン設定モーダル -->
+<div class="overlay hidden" id="tokenOverlay" onclick="if(event.target.id==='tokenOverlay')closeTokenModal()">
+  <div class="modal" onclick="event.stopPropagation()" style="max-width:400px">
+    <div class="modal-title">🔑 GitHubトークン設定</div>
+    <p style="font-size:13px;color:#9B8EC4;margin-bottom:14px">画像のアップロードに必要です。一度設定すればこのデバイスに保存されます。</p>
+    <label>Personal Access Token</label>
+    <input type="password" id="tokenInput" placeholder="ghp_xxxxxxxxxxxx" style="width:100%;padding:11px 13px;border-radius:10px;border:2px solid #EDE8FF;font-size:14px;color:#3D2D6B;outline:none;margin-bottom:14px;font-family:inherit">
+    <div class="btn-row">
+      <button class="btn btn-cancel" onclick="closeTokenModal()">キャンセル</button>
+      <button class="btn btn-save" onclick="saveToken()">保存する</button>
+    </div>
+  </div>
+</div>
+
 <div class="toast" id="toast"></div>
 
 <script>
-const GAS_URL = "https://script.google.com/macros/s/AKfycbz15714vdWLmkH73AZWLFqltmy8qHwqgjWfWnkTtP49d4lCi7ZpBWv9zg27Zkms2a3wLA/exec";
+const GAS_URL = "https://script.google.com/macros/s/AKfycbxAgrFw7WTudkNGK8tpauoUokjyDPZ4ioMM8iOt5CzHZnlyTz4uiMRFHJy3rjeW1Vw5bA/exec";
+const GH_USER = "shifaff-coder";
+const GH_REPO = "family-calendar";
+const GH_BRANCH = "main";
+const GH_TOKEN_KEY = "gh_token_family_cal";
+function getGHToken() {
+  return localStorage.getItem(GH_TOKEN_KEY) || "";
+}
 
 const MEMBERS = [
   { id: "papa",  label: "パパ",  emoji: "👨", color: "#4A90D9", light: "#E8F3FC" },
@@ -326,6 +354,7 @@ function init() {
   renderAll();
   syncFromSheet();
   loadImages();
+  checkToken();
 }
 
 // ── 描画 ──
@@ -567,7 +596,7 @@ function renderImages() {
   let html = "";
   imgs.forEach(function(img, i) {
     html += '<div class="photo-item">';
-    html += '<img src="' + img.base64 + '" loading="lazy" onclick="openImgViewerIdx(' + i + ')">';
+    html += '<img src="' + img.url + '" loading="lazy" onclick="openImgViewerIdx(' + i + ')">';
     html += '<button class="photo-delete-btn" onclick="deleteImg(' + i + ',event)">✕</button>';
     html += '</div>';
   });
@@ -606,52 +635,43 @@ async function uploadImage(file) {
   try {
     const base64 = await fileToBase64(file);
     const id = Date.now().toString() + Math.floor(Math.random()*1000);
-    const filename = currentYearMonth() + "_" + id + ".jpg";
     const ym = currentYearMonth();
-    const CHUNK = 20000; // 20KBずつ送信
+    const path = "images/" + ym + "/" + id + ".jpg";
+    const apiUrl = "https://api.github.com/repos/" + GH_USER + "/" + GH_REPO + "/contents/" + path;
 
-    // チャンク分割
-    const chunks = [];
-    for (let i = 0; i < base64.length; i += CHUNK) {
-      chunks.push(base64.slice(i, i + CHUNK));
-    }
-    console.log("チャンク数: " + chunks.length + " 合計サイズ: " + base64.length);
+    const res = await fetch(apiUrl, {
+      method: "PUT",
+      headers: {
+        "Authorization": "token " + getGHToken(),
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        message: "Add image " + id,
+        content: base64,
+        branch: GH_BRANCH,
+      }),
+    });
 
-    // 順番に送信
-    let rowIndex = null;
-    for (let i = 0; i < chunks.length; i++) {
-      const isFirst = (i === 0);
-      const isDone = (i === chunks.length - 1);
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.message || "GitHub upload failed");
 
-      const body = {
-        action: "uploadImageChunk",
-        id: id,
-        yearMonth: ym,
-        filename: filename,
-        mimeType: "image/jpeg",
-        chunk: i,
-        data: chunks[i],
-        done: isDone,
-        rowIndex: rowIndex,
-      };
+    const rawUrl = "https://raw.githubusercontent.com/" + GH_USER + "/" + GH_REPO + "/" + GH_BRANCH + "/" + path;
 
-      console.log("チャンク送信 " + i + "/" + (chunks.length-1) + " rowIndex=" + rowIndex);
-
-      const res = await fetch(GAS_URL, {
-        method: "POST",
-        redirect: "follow",
-        headers: { "Content-Type": "text/plain" },
-        body: JSON.stringify(body),
-      });
-      const text = await res.text();
-      console.log("チャンク" + i + "応答: " + text);
-      const result = JSON.parse(text);
-      if (result.status !== "ok") {
-        throw new Error(result.message || "チャンク" + i + "送信失敗");
-      }
-      // rowIndexを必ず更新
-      if (result.rowIndex) rowIndex = result.rowIndex;
-    }
+    // GASのスプレッドシートにURLを保存
+    const saveRes = await fetch(GAS_URL, {
+      method: "POST",
+      redirect: "follow",
+      headers: { "Content-Type": "text/plain" },
+      body: JSON.stringify({
+        action: "saveImage",
+        id, yearMonth: ym,
+        filename: id + ".jpg",
+        url: rawUrl,
+      }),
+    });
+    const saveText = await saveRes.text();
+    const saveData = JSON.parse(saveText);
+    if (saveData.status !== "ok") throw new Error(saveData.message || "保存失敗");
 
     await loadImages();
     showToast("🖼️ 画像をアップロードしました");
@@ -735,14 +755,42 @@ function openImgViewer(url) {
 }
 function openImgViewerIdx(idx) {
   const img = state.images[idx];
-  if (img && img.base64) {
-    document.getElementById("imgViewerImg").src = img.base64;
+  if (img && img.url) {
+    document.getElementById("imgViewerImg").src = img.url;
     document.getElementById("imgViewer").classList.remove("hidden");
   }
 }
 function closeImgViewer() {
   document.getElementById("imgViewer").classList.add("hidden");
   document.getElementById("imgViewerImg").src = "";
+}
+
+// ── トークン管理 ──
+function checkToken() {
+  const token = getGHToken();
+  const warning = document.getElementById("tokenWarning");
+  if (!token) {
+    warning.classList.remove("hidden");
+    warning.style.display = "flex";
+  } else {
+    warning.classList.add("hidden");
+    warning.style.display = "none";
+  }
+}
+function openTokenModal() {
+  document.getElementById("tokenInput").value = getGHToken();
+  document.getElementById("tokenOverlay").classList.remove("hidden");
+}
+function closeTokenModal() {
+  document.getElementById("tokenOverlay").classList.add("hidden");
+}
+function saveToken() {
+  const token = document.getElementById("tokenInput").value.trim();
+  if (!token) { alert("トークンを入力してください"); return; }
+  localStorage.setItem(GH_TOKEN_KEY, token);
+  closeTokenModal();
+  checkToken();
+  showToast("🔑 トークンを保存しました");
 }
 
 init();
