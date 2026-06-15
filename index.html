@@ -596,7 +596,7 @@ async function saveEvent() {
   const note = document.getElementById("formNote").value.trim();
   const date = document.getElementById("formDate").value;
   if (!date) { alert("日付を選んでください"); return; }
-  if (!title || m.memberIds.length===0) { alert("タイトルとメンバーを選んでください"); return; }
+  if (!title) { alert("タイトルを入力してください"); return; }
   if (m.editId) {
     state.events = state.events.map(e => String(e.id)===String(m.editId) ? {...e, date, title, memberIds:m.memberIds, categoryEmoji:m.emoji, note} : e);
   } else {
