@@ -274,7 +274,7 @@
 <div class="toast" id="toast"></div>
 
 <script>
-const GAS_URL = "https://script.google.com/macros/s/AKfycbzZgaJWRAFQqnROTy15ESgq8AzbgQ_te6Ktz_lWAsE7oDC6ZlTXHxM9brBsWXY1imCx2A/exec";
+const GAS_URL = "https://script.google.com/macros/s/AKfycbzcYKD8M5-t5sdzRy3Xu3ZOOc7m0WHI98AZrTJJ-vrhsdAap2crpD1866n8YhA7u4CDcw/exec";
 const GH_USER = "shifaff-coder";
 const GH_REPO = "family-calendar";
 const GH_BRANCH = "main";
@@ -345,8 +345,16 @@ async function syncFromSheet() {
     const data = JSON.parse(text);
     if (data.status === "ok") {
       state.events = (data.events || []).map(ev => {
-        // 日付を正規化 "2026-06-14T15:00:00.000Z" → "2026-06-14"
-        const date = (ev.date || "").substring(0, 10);
+        // 日付を正規化 "2026-06-14T15:00:00.000Z" → 日本時間で "2026-06-15" にならないよう修正
+        let date = ev.date || "";
+        if (date.includes("T")) {
+          // UTCのISO文字列を日本時間(+9)に変換して日付部分だけ取得
+          const d = new Date(date);
+          const jst = new Date(d.getTime() + 9 * 60 * 60 * 1000);
+          date = jst.toISOString().substring(0, 10);
+        } else {
+          date = date.substring(0, 10);
+        }
         // memberIdsを正規化
         let memberIds = ev.memberIds;
         if (!Array.isArray(memberIds)) {
