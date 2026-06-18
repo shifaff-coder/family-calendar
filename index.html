@@ -158,7 +158,7 @@
   <div class="header">
     <div style="position:relative">
       <div class="header-sub">朝日カレンダー</div>
-      <span style="position:absolute;top:0;right:0;font-size:10px;color:#C4B8F0;font-weight:500">v1.2.0</span>
+      <span style="position:absolute;top:0;right:0;font-size:10px;color:#C4B8F0;font-weight:500">v1.5.0</span>
     </div>
     <div class="header-nav">
       <button class="nav-btn" onclick="changeMonth(-1)">‹</button>
@@ -276,8 +276,22 @@
 
 <div class="toast" id="toast"></div>
 
+<!-- 不審アクセス警告モーダル -->
+<div class="overlay hidden" id="alertOverlay">
+  <div class="modal" onclick="event.stopPropagation()" style="max-width:380px;text-align:center">
+    <div style="font-size:48px;margin-bottom:12px">⚠️</div>
+    <div class="modal-title" style="text-align:center">見慣れない端末からのアクセス</div>
+    <p style="font-size:13px;color:#9B8EC4;margin-bottom:8px">このデバイスから朝日カレンダーへのアクセスは初めてです。</p>
+    <div id="alertDetail" style="font-size:12px;color:#C4B8F0;background:#F8F6FF;border-radius:10px;padding:12px;margin-bottom:20px;text-align:left;line-height:1.8"></div>
+    <div class="btn-row">
+      <button class="btn btn-delete" onclick="closeAlertModal()">不審なアクセス</button>
+      <button class="btn btn-save" onclick="closeAlertModal()">自分のアクセス</button>
+    </div>
+  </div>
+</div>
+
 <script>
-const GAS_URL = "https://script.google.com/macros/s/AKfycbyV2KbOjuXWgLh4KjSjedkqOjVRHgRo5nyB3JrI71DVH6jLtWoE_fE21PJZlJqWkAD9vg/exec";
+const GAS_URL = "https://script.google.com/macros/s/AKfycbxkRwhjFUhgMfsGIbChTsQ9LZa8Mvd7oGyrPbJD5auJjz8JQoLgJGh5m-Mn7xj9unNq8Q/exec";
 const GH_USER = "shifaff-coder";
 const GH_REPO = "family-calendar";
 const GH_BRANCH = "main";
@@ -826,34 +840,77 @@ function closeImgViewer() {
 // ── パスワード管理 ──
 const PW_CORRECT = "230230";
 const PW_KEY = "family_cal_auth";
+const PW_FAIL_KEY = "family_cal_fails";
 let pwCurrent = "";
+let pwLocked = false;
+let pwLockTimer = null;
 
 function checkAuth() {
   try {
     const saved = JSON.parse(localStorage.getItem(PW_KEY) || "{}");
     const now = new Date();
-    // 翌月1日まで有効
     if (saved.expiry && new Date(saved.expiry) > now) {
-      unlockApp();
+      unlockApp(false);
       return;
     }
   } catch {}
-  // パスワード画面を表示
   document.getElementById("pwScreen").style.display = "flex";
   document.getElementById("app").classList.add("hidden");
+  checkLockStatus();
 }
 
-function unlockApp() {
+function checkLockStatus() {
+  try {
+    const fails = JSON.parse(localStorage.getItem(PW_FAIL_KEY) || "{}");
+    const now = Date.now();
+    if (fails.lockUntil && fails.lockUntil > now) {
+      startLockCountdown(fails.lockUntil, fails.count);
+    }
+  } catch {}
+}
+
+function startLockCountdown(lockUntil, failCount) {
+  pwLocked = true;
+  setNumpadEnabled(false);
+  const lockMin = failCount >= 10 ? 60 : 0.5;
+  const update = () => {
+    const remaining = Math.ceil((lockUntil - Date.now()) / 1000);
+    if (remaining <= 0) {
+      pwLocked = false;
+      setNumpadEnabled(true);
+      document.getElementById("pwError").textContent = "";
+      if (pwLockTimer) clearInterval(pwLockTimer);
+      return;
+    }
+    const m = Math.floor(remaining / 60);
+    const s = remaining % 60;
+    document.getElementById("pwError").textContent =
+      m > 0 ? m + "分" + s + "秒後に再試行できます" : s + "秒後に再試行できます";
+  };
+  update();
+  pwLockTimer = setInterval(update, 1000);
+}
+
+function setNumpadEnabled(enabled) {
+  document.querySelectorAll(".pw-btn").forEach(btn => {
+    btn.disabled = !enabled;
+    btn.style.opacity = enabled ? "1" : "0.3";
+  });
+}
+
+function unlockApp(isNew) {
   document.getElementById("pwScreen").style.display = "none";
   document.getElementById("app").classList.remove("hidden");
-  // 翌月1日を有効期限に設定
   const now = new Date();
   const expiry = new Date(now.getFullYear(), now.getMonth() + 1, 1);
   localStorage.setItem(PW_KEY, JSON.stringify({ expiry: expiry.toISOString() }));
+  localStorage.removeItem(PW_FAIL_KEY);
+  // アクセスログを送信（パスワード入力成功時のみisNew=true）
+  sendAccessLog(isNew || false);
 }
 
 function pwInput(num) {
-  if (pwCurrent.length >= 6) return;
+  if (pwLocked || pwCurrent.length >= 6) return;
   pwCurrent += num;
   updatePwDots();
   if (pwCurrent.length === 6) {
@@ -862,6 +919,7 @@ function pwInput(num) {
 }
 
 function pwDelete() {
+  if (pwLocked) return;
   pwCurrent = pwCurrent.slice(0, -1);
   updatePwDots();
   document.getElementById("pwError").textContent = "";
@@ -876,17 +934,109 @@ function updatePwDots() {
 
 function checkPw() {
   if (pwCurrent === PW_CORRECT) {
-    unlockApp();
+    unlockApp(true);
   } else {
-    document.getElementById("pwError").textContent = "パスワードが違います";
-    // ドットを赤く点滅させてリセット
-    document.querySelectorAll(".pw-dot").forEach(d => d.style.background = "#E07B8A");
-    setTimeout(() => {
-      pwCurrent = "";
-      updatePwDots();
-      document.querySelectorAll(".pw-dot").forEach(d => d.style.background = "");
-    }, 600);
+    // 失敗カウント更新
+    let fails = {};
+    try { fails = JSON.parse(localStorage.getItem(PW_FAIL_KEY) || "{}"); } catch {}
+    fails.count = (fails.count || 0) + 1;
+
+    let lockSec = 0;
+    if (fails.count >= 10) {
+      lockSec = 60 * 60; // 1時間
+    } else if (fails.count >= 5) {
+      lockSec = 30; // 30秒
+    }
+
+    if (lockSec > 0) {
+      fails.lockUntil = Date.now() + lockSec * 1000;
+      localStorage.setItem(PW_FAIL_KEY, JSON.stringify(fails));
+      document.querySelectorAll(".pw-dot").forEach(d => d.style.background = "#E07B8A");
+      setTimeout(() => {
+        pwCurrent = "";
+        updatePwDots();
+        document.querySelectorAll(".pw-dot").forEach(d => d.style.background = "");
+        startLockCountdown(fails.lockUntil, fails.count);
+      }, 600);
+    } else {
+      localStorage.setItem(PW_FAIL_KEY, JSON.stringify(fails));
+      const remaining = 5 - fails.count;
+      document.getElementById("pwError").textContent =
+        remaining > 0 ? "パスワードが違います（あと" + remaining + "回で一時ロック）" : "パスワードが違います";
+      document.querySelectorAll(".pw-dot").forEach(d => d.style.background = "#E07B8A");
+      setTimeout(() => {
+        pwCurrent = "";
+        updatePwDots();
+        document.querySelectorAll(".pw-dot").forEach(d => d.style.background = "");
+      }, 600);
+    }
   }
+}
+
+// ── アクセスログ ──
+const DEVICE_ID_KEY = "family_cal_device_id";
+
+function getOrCreateDeviceId() {
+  let id = localStorage.getItem(DEVICE_ID_KEY);
+  if (!id) {
+    id = "dev_" + Date.now() + "_" + Math.random().toString(36).substr(2, 8);
+    localStorage.setItem(DEVICE_ID_KEY, id);
+  }
+  return id;
+}
+
+async function sendAccessLog(isNew) {
+  try {
+    const deviceId = getOrCreateDeviceId();
+    const ua = navigator.userAgent;
+    const screen = window.screen.width + "x" + window.screen.height;
+    const language = navigator.language;
+
+    const res = await fetch(GAS_URL, {
+      method: "POST",
+      redirect: "follow",
+      headers: { "Content-Type": "text/plain" },
+      body: JSON.stringify({
+        action: "accessLog",
+        deviceId,
+        userAgent: ua,
+        screen,
+        language,
+        isNew,
+      }),
+    });
+    const text = await res.text();
+    const data = JSON.parse(text);
+
+    // 初回アクセスの場合は警告表示
+    if (isNew && !data.isKnownDevice) {
+      showAccessAlert(ua, screen, language);
+    }
+  } catch(err) {
+    console.error("accessLog error:", err);
+  }
+}
+
+function showAccessAlert(ua, screen, language) {
+  // ブラウザ判定
+  let browser = "不明";
+  if (ua.includes("CriOS")) browser = "Chrome (iPhone)";
+  else if (ua.includes("FxiOS")) browser = "Firefox (iPhone)";
+  else if (ua.includes("Safari") && ua.includes("Mobile")) browser = "Safari (iPhone)";
+  else if (ua.includes("Safari")) browser = "Safari";
+  else if (ua.includes("Chrome")) browser = "Chrome";
+
+  document.getElementById("alertDetail").innerHTML =
+    "📱 ブラウザ：" + browser + "<br>" +
+    "🖥️ 画面サイズ：" + screen + "<br>" +
+    "🌐 言語設定：" + language + "<br>" +
+    "🕐 日時：" + new Date().toLocaleString("ja-JP");
+
+  document.getElementById("alertOverlay").classList.remove("hidden");
+}
+
+function closeAlertModal() {
+  document.getElementById("alertOverlay").classList.add("hidden");
 }
 
 // ── トークン管理 ──
