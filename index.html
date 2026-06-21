@@ -158,7 +158,7 @@
   <div class="header">
     <div style="position:relative">
       <div class="header-sub">朝日カレンダー</div>
-      <span style="position:absolute;top:0;right:0;font-size:10px;color:#C4B8F0;font-weight:500">v1.5.0</span>
+      <span style="position:absolute;top:0;right:0;font-size:10px;color:#C4B8F0;font-weight:500">v1.6.0</span>
     </div>
     <div class="header-nav">
       <button class="nav-btn" onclick="changeMonth(-1)">‹</button>
@@ -291,7 +291,7 @@
 </div>
 
 <script>
-const GAS_URL = "https://script.google.com/macros/s/AKfycbxkRwhjFUhgMfsGIbChTsQ9LZa8Mvd7oGyrPbJD5auJjz8JQoLgJGh5m-Mn7xj9unNq8Q/exec";
+const GAS_URL = "https://script.google.com/macros/s/AKfycbwXdb6i0Wyg6z_wRaiI6L1Jvw6KJiQjtbc21nq7XIS5m7NrixDIQxCOlHm8p7biDkGJZg/exec";
 const GH_USER = "shifaff-coder";
 const GH_REPO = "family-calendar";
 const GH_BRANCH = "main";
@@ -424,9 +424,25 @@ function init() {
   checkAuth();
   state.events = loadLocal();
   renderAll();
-  syncFromSheet();
+  syncFromSheet().then(() => syncGoogleCalendar());
   loadImages();
   checkToken();
+}
+
+// ── Googleカレンダー取り込み ──
+async function syncGoogleCalendar() {
+  try {
+    const ym = currentYearMonth();
+    const res = await fetch(GAS_URL + "?action=syncGoogleCalendar&yearMonth=" + ym + "&t=" + Date.now(), { redirect: "follow" });
+    const text = await res.text();
+    const data = JSON.parse(text);
+    if (data.status === "ok" && data.imported > 0) {
+      showToast("📆 Googleカレンダーから" + data.imported + "件取り込みました");
+      await syncFromSheet();
+    }
+  } catch(err) {
+    console.error("syncGoogleCalendar error:", err);
+  }
 }
 
 // ── 描画 ──
@@ -552,6 +568,7 @@ function changeMonth(dir) {
   if (state.month > 11) { state.month=0; state.year++; }
   renderAll();
   loadImages();
+  syncGoogleCalendar();
 }
 function toggleFilter(id) {
   state.filterMember = state.filterMember===id ? null : id;
