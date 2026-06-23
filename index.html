@@ -165,6 +165,9 @@
       <span class="month-label" id="monthLabel"></span>
       <button class="nav-btn" onclick="changeMonth(1)">›</button>
     </div>
+    <div style="margin-top:8px">
+      <button class="sync-btn" onclick="goToday()">今日</button>
+    </div>
   </div>
 
   <div class="sync-bar">
@@ -569,6 +572,13 @@ function changeMonth(dir) {
   renderAll();
   loadImages();
   syncGoogleCalendar();
+}
+function goToday() {
+  const now = new Date();
+  state.year = now.getFullYear();
+  state.month = now.getMonth();
+  renderAll();
+  loadImages();
 }
 function toggleFilter(id) {
   state.filterMember = state.filterMember===id ? null : id;
