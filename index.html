@@ -294,7 +294,7 @@
 </div>
 
 <script>
-const GAS_URL = "https://script.google.com/macros/s/AKfycbylLK1_X-sFnxbS1NBsWGU_pALN1Q12C9M1VIVfh5ePLNJmW6lwCK--Ko0eix8j1fVHXw/exec";
+const GAS_URL = "https://script.google.com/macros/s/AKfycbw71QSOv91czb0L2jMSPHFy1aH5m0eamzhX54SqPaBvH8Mh5ujq-pdB-9AbLWQEFO21lQ/exec";
 const GH_USER = "shifaff-coder";
 const GH_REPO = "family-calendar";
 const GH_BRANCH = "main";
@@ -644,7 +644,7 @@ async function saveEvent() {
   if (m.editId) {
     state.events = state.events.map(e => String(e.id)===String(m.editId) ? {...e, date, title, memberIds:m.memberIds, categoryEmoji:m.emoji, note} : e);
   } else {
-    state.events.push({ id: Date.now().toString() + Math.random(), date, title, memberIds:m.memberIds, categoryEmoji:m.emoji, note });
+state.events.push({ id: "m" + Date.now() + "_" + Math.random().toString(36).substr(2, 6), date, title, memberIds:m.memberIds, categoryEmoji:m.emoji, note });
   }
   closeModal();
   renderAll();
