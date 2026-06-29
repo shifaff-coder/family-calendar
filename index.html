@@ -1100,10 +1100,30 @@ function saveToken() {
 init();
 
 if ('serviceWorker' in navigator) {
-  navigator.serviceWorker.register('/sw.js').then(reg => {
+  navigator.serviceWorker.register('/family-calendar/sw.js').then(reg => {
     reg.update();
   });
 }
+
+// バージョンチェック：古いキャッシュを検知したら自動リロード
+const CURRENT_VERSION = "v1.9.0";
+async function checkVersion() {
+  try {
+    const res = await fetch("https://shifaff-coder.github.io/family-calendar/index.html?t=" + Date.now(), { cache: "no-store" });
+    const text = await res.text();
+    const match = text.match(/v(\d+\.\d+\.\d+)/);
+    if (match) {
+      const latest = match[0];
+      if (latest !== CURRENT_VERSION) {
+        console.log("新しいバージョン検出:", latest, "→ リロードします");
+        window.location.reload(true);
+      }
+    }
+  } catch(e) {
+    // オフライン時は無視
+  }
+}
+setTimeout(checkVersion, 3000);
 </script>
 </body>
 </html>
