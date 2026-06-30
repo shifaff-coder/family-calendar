@@ -56,7 +56,9 @@ function getEvents() {
   const events = rows.map(row => {
     const obj = {};
     headers.forEach((h, i) => obj[h] = row[i]);
-    try { obj.memberIds = JSON.parse(obj.memberIds); } catch { obj.memberIds = []; }
+    // シートのヘッダーは小文字 "memberids"。配列化して memberIds に詰め直す。
+    try { obj.memberIds = JSON.parse(obj.memberids); } catch { obj.memberIds = []; }
+    if (!Array.isArray(obj.memberIds)) obj.memberIds = [];
     return obj;
   });
   return jsonResponse({ status: "ok", events });
@@ -80,7 +82,11 @@ function saveEvents(events) {
       const id = String(r[0]);
       if (clientGcalMap[id]) {
         const ev = clientGcalMap[id];
-        return [id, r[1], r[2], JSON.stringify(ev.memberIds || []), ev.categoryEmoji || r[4], ev.note || r[5]];
+        let memberIds = ev.memberIds || [];
+        if (!Array.isArray(memberIds)) {
+          try { memberIds = JSON.parse(memberIds); } catch { memberIds = []; }
+        }
+        return [id, r[1], r[2], JSON.stringify(memberIds), ev.categoryEmoji || r[4], ev.note || r[5]];
       }
       return r;
     });
@@ -101,13 +107,20 @@ function saveEvents(events) {
       } else {
         date = date.substring(0, 10);
       }
-      return [ev.id, date, ev.title, JSON.stringify(ev.memberIds), ev.categoryEmoji, ev.note || ""];
+      // memberIds を配列として受け取り、JSON文字列で保存
+      let memberIds = ev.memberIds;
+      if (!Array.isArray(memberIds)) {
+        try { memberIds = JSON.parse(memberIds); } catch { memberIds = []; }
+      }
+      // ID は必ず文字列で書き込む（数値化による破損防止）
+      return [String(ev.id), date, ev.title, JSON.stringify(memberIds), ev.categoryEmoji, ev.note || ""];
     });
 
   const allRows = [...manualRows, ...gcalRows];
   if (allRows.length > 0) {
     sheet.getRange(2, 1, allRows.length, 6).setValues(allRows);
-    sheet.getRange(2, 2, allRows.length, 1).setNumberFormat("@");
+    sheet.getRange(2, 1, allRows.length, 1).setNumberFormat("@"); // ID列
+    sheet.getRange(2, 2, allRows.length, 1).setNumberFormat("@"); // 日付列
   }
 
   return jsonResponse({ status: "ok" });
@@ -122,11 +135,6 @@ function syncGoogleCalendar(yearMonth) {
 
     const cal = CalendarApp.getDefaultCalendar();
     const gEvents = cal.getEvents(startDate, endDate);
-
-    // 今月分のGoogleカレンダーIDセット
-    const currentGcalIds = new Set(
-      gEvents.map(ev => "gcal_" + ev.getId().replace(/[^a-zA-Z0-9]/g, "").substring(0, 30))
-    );
 
     const sheet = getSheet(SHEET_NAME);
     const data = sheet.getDataRange().getValues();
@@ -154,18 +162,15 @@ function syncGoogleCalendar(yearMonth) {
       const baseId = "gcal_" + ev.getId().replace(/[^a-zA-Z0-9]/g, "").substring(0, 28);
       const title = ev.getTitle() || "（無題）";
 
-      // 開始日・終了日を日本時間で取得
       const start = ev.getStartTime();
       const end = ev.getEndTime();
 
-      // 終日イベントは終了日が exclusive なので1日引く、時間イベントはそのまま
       const isAllDay = ev.isAllDayEvent();
       const endAdj = isAllDay ? new Date(end.getTime() - 1) : end;
 
       const startStr = Utilities.formatDate(start, "Asia/Tokyo", "yyyy-MM-dd");
       const endStr   = Utilities.formatDate(endAdj, "Asia/Tokyo", "yyyy-MM-dd");
 
-      // 開始日から終了日まで1日ずつ登録
       const cur = new Date(start);
       cur.setHours(0, 0, 0, 0);
       let dayIndex = 0;
@@ -173,7 +178,6 @@ function syncGoogleCalendar(yearMonth) {
         const curStr = Utilities.formatDate(cur, "Asia/Tokyo", "yyyy-MM-dd");
         if (curStr > endStr) break;
 
-        // 今月の範囲内のみ登録
         if (curStr.startsWith(yearMonth)) {
           const gcalId = baseId + "_d" + dayIndex;
           if (!existingGcalIds.has(gcalId)) {
@@ -184,14 +188,15 @@ function syncGoogleCalendar(yearMonth) {
 
         cur.setDate(cur.getDate() + 1);
         dayIndex++;
-        if (dayIndex > 31) break; // 無限ループ防止
+        if (dayIndex > 31) break;
       }
     });
 
     if (newRows.length > 0) {
       const lastRow = sheet.getLastRow();
       sheet.getRange(lastRow + 1, 1, newRows.length, 6).setValues(newRows);
-      sheet.getRange(lastRow + 1, 2, newRows.length, 1).setNumberFormat("@");
+      sheet.getRange(lastRow + 1, 1, newRows.length, 1).setNumberFormat("@"); // ID列
+      sheet.getRange(lastRow + 1, 2, newRows.length, 1).setNumberFormat("@"); // 日付列
     }
 
     return jsonResponse({ status: "ok", imported: newRows.length });
@@ -279,4 +284,141 @@ function jsonResponse(obj) {
   return ContentService
     .createTextOutput(JSON.stringify(obj))
     .setMimeType(ContentService.MimeType.JSON);
+}
+
+// ====================================================================
+// NocoDB 連携
+// ====================================================================
+
+const NOCODB_BASE_URL = "https://shif-pc-da970mab.tail052499.ts.net";
+const NOCODB_TOKEN = "nc_pat_ermieoZvZBmK4D0wzFZzJxqirX2tvr9l9LQPCsD6";
+const NOCODB_MEMBER_TABLE_ID = "m8vphzapdjk158t";
+const NOCODB_EVENT_TABLE_ID = "mbe4zeu0cah6srv";
+
+function checkMemberIds() {
+  const url = `${NOCODB_BASE_URL}/api/v2/tables/${NOCODB_MEMBER_TABLE_ID}/records?limit=50`;
+  const res = UrlFetchApp.fetch(url, {
+    method: "get",
+    headers: { "xc-token": NOCODB_TOKEN },
+    muteHttpExceptions: true
+  });
+  Logger.log(res.getContentText());
+}
+
+const MEMBER_ID_MAP = {
+  papa: 1,
+  mama: 2,
+  mari: 3,
+  aki: 4,
+  hiro: 5,
+  iku: 6
+};
+
+function nocodbRequest(method, path, payload) {
+  const options = {
+    method: method,
+    headers: {
+      "xc-token": NOCODB_TOKEN,
+      "Content-Type": "application/json"
+    },
+    muteHttpExceptions: true
+  };
+  if (payload !== undefined) options.payload = JSON.stringify(payload);
+  const res = UrlFetchApp.fetch(`${NOCODB_BASE_URL}${path}`, options);
+  const code = res.getResponseCode();
+  if (code >= 300) {
+    throw new Error(`NocoDB API error ${code}: ${res.getContentText()}`);
+  }
+  return res.getContentText() ? JSON.parse(res.getContentText()) : null;
+}
+
+function syncToNocoDB() {
+  const sheet = getSheet(SHEET_NAME);
+  const data = sheet.getDataRange().getValues();
+  if (data.length < 2) {
+    Logger.log("予定シートにデータがありません。同期をスキップします。");
+    return;
+  }
+  const headers = data[0];
+  const rows = data.slice(1).filter(r => r[0] !== "");
+  const events = rows.map(row => {
+    const obj = {};
+    headers.forEach((h, i) => obj[h] = row[i]);
+    try { obj.memberIds = JSON.parse(obj.memberids); } catch { obj.memberIds = []; }
+    if (!Array.isArray(obj.memberIds)) obj.memberIds = [];
+    return obj;
+  });
+
+  const listPath = `/api/v2/tables/${NOCODB_EVENT_TABLE_ID}/records?limit=1000`;
+  const existing = nocodbRequest("get", listPath);
+  const existingIds = (existing.list || []).map(r => r.Id);
+
+  if (existingIds.length > 0) {
+    const deletePayload = existingIds.map(id => ({ Id: id }));
+    nocodbRequest("delete", `/api/v2/tables/${NOCODB_EVENT_TABLE_ID}/records`, deletePayload);
+  }
+
+  const createPayload = events.map(ev => {
+    const isGcal = String(ev.id).startsWith("gcal_");
+    const memo = [ev.categoryEmoji || "", ev.note || ""].filter(Boolean).join(" ");
+    return {
+      "タイトル": ev.title || "",
+      "開始時間": ev.date || null,
+      "終了日時": ev.date || null,
+      "種別": "",
+      "場所": "",
+      "出典": isGcal ? "Googleカレンダー" : "朝日カレンダー",
+      "メモ": memo
+    };
+  });
+
+  if (createPayload.length === 0) {
+    Logger.log("作成対象の予定がありません。");
+    return;
+  }
+
+  const created = nocodbRequest("post", `/api/v2/tables/${NOCODB_EVENT_TABLE_ID}/records`, createPayload);
+
+  created.forEach((createdRecord, idx) => {
+    const ev = events[idx];
+    const memberIds = (ev.memberIds || [])
+      .map(code => MEMBER_ID_MAP[code])
+      .filter(id => id !== undefined);
+
+    Logger.log(`[link debug] event="${ev.title}" createdId=${createdRecord.Id} memberCodes=${JSON.stringify(ev.memberIds)} memberIds=${JSON.stringify(memberIds)}`);
+
+    if (memberIds.length === 0) return;
+
+    const linkPath = `/api/v2/tables/${NOCODB_EVENT_TABLE_ID}/links/csyxmyszs5b9euw/records/${createdRecord.Id}`;
+    const linkPayload = memberIds.map(id => ({ Id: id }));
+    const linkResult = nocodbRequest("post", linkPath, linkPayload);
+    Logger.log(`[link debug] linkResult=${JSON.stringify(linkResult)}`);
+  });
+
+  Logger.log(`同期完了: ${createPayload.length}件の予定をNocoDBに反映しました。`);
+}
+
+function setupSyncTrigger() {
+  ScriptApp.getProjectTriggers().forEach(t => {
+    if (t.getHandlerFunction() === "syncToNocoDB") ScriptApp.deleteTrigger(t);
+  });
+  ScriptApp.newTrigger("syncToNocoDB")
+    .timeBased()
+    .atHour(1)
+    .everyDays(1)
+    .create();
+  Logger.log("深夜1時の同期トリガーを設定しました。");
+}
+
+function checkEventFields() {
+  const url = `${NOCODB_BASE_URL}/api/v2/meta/tables/${NOCODB_EVENT_TABLE_ID}`;
+  const res = UrlFetchApp.fetch(url, {
+    method: "get",
+    headers: { "xc-token": NOCODB_TOKEN },
+    muteHttpExceptions: true
+  });
+  const data = JSON.parse(res.getContentText());
+  (data.columns || []).forEach(c => {
+    Logger.log(`title="${c.title}" id=${c.id} type=${c.uidt}`);
+  });
 }
