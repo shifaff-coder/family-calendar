@@ -66,9 +66,24 @@ function getEvents() {
 function saveEvents(events) {
   const sheet = getSheet(SHEET_NAME);
 
-  // gcal_行を退避
+  // クライアントから送られたgcal_イベントをマップ化（メンバー設定などの変更を保持）
+  const clientGcalMap = {};
+  (events || []).filter(ev => String(ev.id).startsWith("gcal_")).forEach(ev => {
+    clientGcalMap[String(ev.id)] = ev;
+  });
+
+  // シートのgcal_行を取得し、クライアントの変更があれば上書き
   const data = sheet.getDataRange().getValues();
-  const gcalRows = data.slice(1).filter(r => String(r[0]).startsWith("gcal_"));
+  const gcalRows = data.slice(1)
+    .filter(r => String(r[0]).startsWith("gcal_"))
+    .map(r => {
+      const id = String(r[0]);
+      if (clientGcalMap[id]) {
+        const ev = clientGcalMap[id];
+        return [id, r[1], r[2], JSON.stringify(ev.memberIds || []), ev.categoryEmoji || r[4], ev.note || r[5]];
+      }
+      return r;
+    });
 
   // 全データをクリア
   const lastRow = sheet.getLastRow();
