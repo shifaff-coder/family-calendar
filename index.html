@@ -164,7 +164,7 @@
   <div class="header">
     <div style="position:relative">
       <div class="header-sub">朝日カレンダー</div>
-      <span style="position:absolute;top:0;right:0;font-size:10px;color:#C4B8F0;font-weight:500">v1.9.0</span>
+      <span style="position:absolute;top:0;right:0;font-size:10px;color:#C4B8F0;font-weight:500">v1.10.0</span>
     </div>
     <div class="header-nav">
       <button class="nav-btn" onclick="changeMonth(-1)">‹</button>
@@ -1200,7 +1200,7 @@ if ('serviceWorker' in navigator) {
 }
 
 // バージョンチェック：古いキャッシュを検知したら自動リロード
-const CURRENT_VERSION = "v1.9.0";
+const CURRENT_VERSION = "v1.10.0";
 async function checkVersion() {
   try {
     const res = await fetch("https://shifaff-coder.github.io/family-calendar/index.html?t=" + Date.now(), { cache: "no-store" });

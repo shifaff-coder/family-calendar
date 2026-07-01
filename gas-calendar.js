@@ -9,7 +9,7 @@ function getSheet(name) {
   if (!sheet) {
     sheet = ss.insertSheet(name);
     if (name === IMG_SHEET_NAME) {
-      sheet.getRange(1,1,1,4).setValues([["id","yearMonth","filename","url"]]);
+      sheet.getRange(1,1,1,5).setValues([["id","yearMonth","filename","url","order"]]);
     }
     if (name === LOG_SHEET_NAME) {
       sheet.getRange(1,1,1,6).setValues([["日時","デバイスID","ブラウザ","画面サイズ","言語","初回"]]);
@@ -39,6 +39,7 @@ function doPost(e) {
     if (action === "saveEvents")  return saveEvents(body.events);
     if (action === "saveImage")   return saveImage(body);
     if (action === "deleteImage") return deleteImage(body.id);
+    if (action === "reorderImages") return reorderImages(body);
     if (action === "accessLog")   return saveAccessLog(body);
     return jsonResponse({ status: "error", message: "unknown action" });
   } catch(err) {
@@ -211,12 +212,14 @@ function getImages(yearMonth) {
   const data = sheet.getDataRange().getValues();
   if (data.length < 2) return jsonResponse({ status: "ok", images: [] });
   const rows = data.slice(1).filter(r => r[0] !== "" && r[1] === yearMonth);
-  const images = rows.map(row => ({
+  const images = rows.map((row, i) => ({
     id: String(row[0]),
     yearMonth: row[1],
     filename: row[2],
     url: row[3],
+    order: row[4] === "" || row[4] === undefined ? i : Number(row[4]),
   }));
+  images.sort((a, b) => a.order - b.order);
   return jsonResponse({ status: "ok", images });
 }
 
@@ -224,12 +227,27 @@ function getImages(yearMonth) {
 function saveImage(body) {
   const sheet = getSheet(IMG_SHEET_NAME);
   const data = sheet.getDataRange().getValues();
-  const count = data.slice(1).filter(r => r[0] !== "" && r[1] === body.yearMonth).length;
-  if (count >= 10) return jsonResponse({ status: "error", message: "この月の画像は最大10枚までです" });
+  const monthRows = data.slice(1).filter(r => r[0] !== "" && r[1] === body.yearMonth);
+  if (monthRows.length >= 10) return jsonResponse({ status: "error", message: "この月の画像は最大10枚までです" });
   const lastRow = sheet.getLastRow();
-  sheet.getRange(lastRow + 1, 1, 1, 4).setValues([[
-    body.id, body.yearMonth, body.filename, body.url
+  sheet.getRange(lastRow + 1, 1, 1, 5).setValues([[
+    body.id, body.yearMonth, body.filename, body.url, monthRows.length
   ]]);
+  return jsonResponse({ status: "ok" });
+}
+
+// ── 画像並び替え ──
+function reorderImages(body) {
+  const sheet = getSheet(IMG_SHEET_NAME);
+  const data = sheet.getDataRange().getValues();
+  const orderMap = {};
+  (body.order || []).forEach((id, idx) => { orderMap[String(id)] = idx; });
+  for (let i = 1; i < data.length; i++) {
+    const id = String(data[i][0]);
+    if (orderMap.hasOwnProperty(id)) {
+      sheet.getRange(i + 1, 5).setValue(orderMap[id]);
+    }
+  }
   return jsonResponse({ status: "ok" });
 }
 
