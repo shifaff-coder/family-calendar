@@ -59,6 +59,8 @@
     .photo-item { position: relative; border-radius: 12px; overflow: hidden; background: #F0EDF8; aspect-ratio: 4/3; }
     .photo-item img { width: 100%; height: 100%; object-fit: cover; display: block; cursor: pointer; }
     .photo-delete-btn { position: absolute; top: 6px; right: 6px; width: 26px; height: 26px; border-radius: 50%; background: rgba(60,40,120,0.7); border: none; color: #fff; font-size: 14px; cursor: pointer; display: flex; align-items: center; justify-content: center; }
+    .photo-order-btns { position: absolute; top: 6px; left: 6px; display: flex; flex-direction: column; gap: 3px; }
+    .photo-order-btn { width: 26px; height: 26px; border-radius: 50%; background: rgba(60,40,120,0.7); border: none; color: #fff; font-size: 14px; cursor: pointer; display: flex; align-items: center; justify-content: center; line-height: 1; }
     .photo-empty { border: 2px dashed #C4B8F0; border-radius: 16px; padding: 32px; text-align: center; color: #C4B8F0; }
     .photo-uploading { display: flex; align-items: center; justify-content: center; gap: 8px; padding: 12px; background: #FAF8FF; border-radius: 12px; font-size: 13px; color: #7B5DD6; }
     .photo-spinner { animation: spin 1s linear infinite; display: inline-block; }
@@ -70,9 +72,10 @@
     .upload-choice-btn:active { background: #EDE8FF; }
 
     /* 画像拡大モーダル */
-    .img-viewer { position: fixed; inset: 0; background: rgba(0,0,0,0.9); display: flex; align-items: center; justify-content: center; z-index: 300; padding: 16px; }
-    .img-viewer img { max-width: 100%; max-height: 90vh; border-radius: 8px; object-fit: contain; }
-    .img-viewer-close { position: absolute; top: 16px; right: 16px; width: 40px; height: 40px; border-radius: 50%; background: rgba(255,255,255,0.2); border: none; color: #fff; font-size: 22px; cursor: pointer; }
+    .img-viewer { position: fixed; inset: 0; background: rgba(0,0,0,0.9); display: flex; align-items: center; justify-content: center; z-index: 300; overflow: hidden; touch-action: none; }
+    .img-viewer-inner { position: relative; width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; }
+    .img-viewer img { max-width: 100%; max-height: 90vh; border-radius: 8px; object-fit: contain; transform-origin: center center; user-select: none; pointer-events: none; }
+    .img-viewer-close { position: absolute; top: 16px; right: 16px; width: 40px; height: 40px; border-radius: 50%; background: rgba(255,255,255,0.2); border: none; color: #fff; font-size: 22px; cursor: pointer; z-index: 10; }
 
     /* 予定モーダル */
     .overlay { position: fixed; inset: 0; background: rgba(60,40,120,0.38); display: flex; align-items: center; justify-content: center; z-index: 100; padding: 16px; }
@@ -261,9 +264,11 @@
 </div>
 
 <!-- 画像拡大ビュー -->
-<div class="img-viewer hidden" id="imgViewer" onclick="closeImgViewer()">
-  <button class="img-viewer-close" onclick="closeImgViewer()">✕</button>
-  <img id="imgViewerImg" src="" onclick="event.stopPropagation()">
+<div class="img-viewer hidden" id="imgViewer">
+  <div class="img-viewer-inner" id="imgViewerInner">
+    <button class="img-viewer-close" onclick="closeImgViewer()">✕</button>
+    <img id="imgViewerImg" src="">
+  </div>
 </div>
 
 <!-- トークン設定モーダル -->
@@ -700,6 +705,10 @@ function renderImages() {
     html += '<div class="photo-item">';
     html += '<img src="' + img.url + '" loading="lazy" onclick="openImgViewerIdx(' + i + ')">';
     html += '<button class="photo-delete-btn" onclick="deleteImg(' + i + ',event)">✕</button>';
+    html += '<div class="photo-order-btns">';
+    html += (i > 0 ? '<button class="photo-order-btn" onclick="moveImg(' + i + ',-1,event)">▲</button>' : '<div style="width:26px;height:26px"></div>');
+    html += (i < imgs.length - 1 ? '<button class="photo-order-btn" onclick="moveImg(' + i + ',1,event)">▼</button>' : '<div style="width:26px;height:26px"></div>');
+    html += '</div>';
     html += '</div>';
   });
   grid.innerHTML = html;
@@ -851,20 +860,105 @@ function fileToBase64(file) {
   });
 }
 
+// ── 画像並び替え ──
+async function moveImg(idx, dir, e) {
+  e.stopPropagation();
+  const newIdx = idx + dir;
+  if (newIdx < 0 || newIdx >= state.images.length) return;
+  const tmp = state.images[idx];
+  state.images[idx] = state.images[newIdx];
+  state.images[newIdx] = tmp;
+  renderImages();
+  // GASに並び順を保存
+  try {
+    await fetch(GAS_URL, {
+      method: "POST",
+      redirect: "follow",
+      headers: { "Content-Type": "text/plain" },
+      body: JSON.stringify({ action: "reorderImages", yearMonth: currentYearMonth(), order: state.images.map(i => i.id) }),
+    });
+  } catch(err) { console.error("reorderImages error:", err); }
+}
+
+// ── 画像拡大ビューア（ピンチズーム・パン対応）──
+let _viewerScale = 1, _viewerX = 0, _viewerY = 0;
+let _pinchDist = 0, _panStart = null, _isPinching = false;
+
 function openImgViewer(url) {
+  _resetViewer();
   document.getElementById("imgViewerImg").src = url;
   document.getElementById("imgViewer").classList.remove("hidden");
+  _bindViewerEvents();
 }
 function openImgViewerIdx(idx) {
   const img = state.images[idx];
-  if (img && img.url) {
-    document.getElementById("imgViewerImg").src = img.url;
-    document.getElementById("imgViewer").classList.remove("hidden");
-  }
+  if (img && img.url) openImgViewer(img.url);
 }
 function closeImgViewer() {
   document.getElementById("imgViewer").classList.add("hidden");
   document.getElementById("imgViewerImg").src = "";
+  _unbindViewerEvents();
+  _resetViewer();
+}
+function _resetViewer() {
+  _viewerScale = 1; _viewerX = 0; _viewerY = 0;
+  _applyViewerTransform();
+}
+function _applyViewerTransform() {
+  const img = document.getElementById("imgViewerImg");
+  img.style.transform = `translate(${_viewerX}px, ${_viewerY}px) scale(${_viewerScale})`;
+}
+function _pinchDist2(t) {
+  const dx = t[0].clientX - t[1].clientX, dy = t[0].clientY - t[1].clientY;
+  return Math.sqrt(dx*dx + dy*dy);
+}
+function _onViewerTouchStart(e) {
+  if (e.touches.length === 2) {
+    _isPinching = true;
+    _pinchDist = _pinchDist2(e.touches);
+  } else if (e.touches.length === 1 && _viewerScale > 1) {
+    _panStart = { x: e.touches[0].clientX - _viewerX, y: e.touches[0].clientY - _viewerY };
+  } else if (e.touches.length === 1) {
+    _panStart = { x: e.touches[0].clientX, y: e.touches[0].clientY, isClose: true };
+  }
+}
+function _onViewerTouchMove(e) {
+  e.preventDefault();
+  if (e.touches.length === 2 && _isPinching) {
+    const dist = _pinchDist2(e.touches);
+    _viewerScale = Math.min(5, Math.max(1, _viewerScale * (dist / _pinchDist)));
+    _pinchDist = dist;
+    if (_viewerScale === 1) { _viewerX = 0; _viewerY = 0; }
+    _applyViewerTransform();
+  } else if (e.touches.length === 1 && _panStart && _viewerScale > 1) {
+    _viewerX = e.touches[0].clientX - _panStart.x;
+    _viewerY = e.touches[0].clientY - _panStart.y;
+    _applyViewerTransform();
+  }
+}
+function _onViewerTouchEnd(e) {
+  if (e.touches.length < 2) _isPinching = false;
+  if (e.touches.length === 0 && _panStart?.isClose && _viewerScale === 1) {
+    closeImgViewer();
+  }
+  if (e.touches.length === 0) _panStart = null;
+}
+function _onViewerClick(e) {
+  if (_viewerScale === 1) closeImgViewer();
+}
+function _bindViewerEvents() {
+  const el = document.getElementById("imgViewer");
+  el.addEventListener("touchstart", _onViewerTouchStart, { passive: false });
+  el.addEventListener("touchmove", _onViewerTouchMove, { passive: false });
+  el.addEventListener("touchend", _onViewerTouchEnd);
+  el.addEventListener("click", _onViewerClick);
+}
+function _unbindViewerEvents() {
+  const el = document.getElementById("imgViewer");
+  el.removeEventListener("touchstart", _onViewerTouchStart);
+  el.removeEventListener("touchmove", _onViewerTouchMove);
+  el.removeEventListener("touchend", _onViewerTouchEnd);
+  el.removeEventListener("click", _onViewerClick);
 }
 
 // ── パスワード管理 ──
