@@ -1,6 +1,7 @@
 const SHEET_NAME = "予定";
 const IMG_SHEET_NAME = "画像";
 const LOG_SHEET_NAME = "アクセスログ";
+const SETTINGS_SHEET_NAME = "設定";
 
 // ── シート取得・作成 ──
 function getSheet(name) {
@@ -14,6 +15,9 @@ function getSheet(name) {
     if (name === LOG_SHEET_NAME) {
       sheet.getRange(1,1,1,6).setValues([["日時","デバイスID","ブラウザ","画面サイズ","言語","初回"]]);
     }
+    if (name === SETTINGS_SHEET_NAME) {
+      sheet.getRange(1,1,1,2).setValues([["key","value"]]);
+    }
   }
   return sheet;
 }
@@ -25,6 +29,7 @@ function doGet(e) {
     if (action === "getEvents")          return getEvents();
     if (action === "getImages")          return getImages(e.parameter.yearMonth);
     if (action === "syncGoogleCalendar") return syncGoogleCalendar(e.parameter.yearMonth);
+    if (action === "getSettings")        return getSettings();
     return jsonResponse({ status: "error", message: "unknown action" });
   } catch(err) {
     return jsonResponse({ status: "error", message: err.message });
@@ -41,6 +46,7 @@ function doPost(e) {
     if (action === "deleteImage") return deleteImage(body.id);
     if (action === "reorderImages") return reorderImages(body);
     if (action === "accessLog")   return saveAccessLog(body);
+    if (action === "saveSettings") return saveSettings(body);
     return jsonResponse({ status: "error", message: "unknown action" });
   } catch(err) {
     return jsonResponse({ status: "error", message: err.toString() });
@@ -295,6 +301,33 @@ function testSync() {
   const gEvents = cal.getEvents(startDate, endDate);
   Logger.log("取得した予定数: " + gEvents.length);
   gEvents.forEach(ev => Logger.log(ev.getStartTime() + " / " + ev.getTitle()));
+}
+
+// ── 設定取得 ──
+function getSettings() {
+  const sheet = getSheet(SETTINGS_SHEET_NAME);
+  const data = sheet.getDataRange().getValues();
+  const settings = {};
+  data.slice(1).forEach(row => { if (row[0] !== "") settings[row[0]] = row[1]; });
+  if (!settings.alexaReadTime) settings.alexaReadTime = "07:30";
+  return jsonResponse({ status: "ok", settings });
+}
+
+// ── 設定保存 ──
+function saveSettings(body) {
+  const sheet = getSheet(SETTINGS_SHEET_NAME);
+  const data = sheet.getDataRange().getValues();
+  const key = body.key;
+  const value = body.value;
+  for (let i = 1; i < data.length; i++) {
+    if (data[i][0] === key) {
+      sheet.getRange(i + 1, 2).setValue(value);
+      return jsonResponse({ status: "ok" });
+    }
+  }
+  const lastRow = sheet.getLastRow();
+  sheet.getRange(lastRow + 1, 1, 1, 2).setValues([[key, value]]);
+  return jsonResponse({ status: "ok" });
 }
 
 // ── レスポンス ──

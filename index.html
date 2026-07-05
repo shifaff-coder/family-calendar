@@ -164,15 +164,16 @@
   <div class="header">
     <div style="position:relative">
       <div class="header-sub">朝日カレンダー</div>
-      <span style="position:absolute;top:0;right:0;font-size:10px;color:#C4B8F0;font-weight:500">v1.10.0</span>
+      <span style="position:absolute;top:0;right:0;font-size:10px;color:#C4B8F0;font-weight:500">v1.11.0</span>
     </div>
     <div class="header-nav">
       <button class="nav-btn" onclick="changeMonth(-1)">‹</button>
       <span class="month-label" id="monthLabel"></span>
       <button class="nav-btn" onclick="changeMonth(1)">›</button>
     </div>
-    <div style="margin-top:8px">
+    <div style="margin-top:8px;display:flex;gap:8px;justify-content:center">
       <button class="sync-btn" onclick="goToday()">今日</button>
+      <button class="sync-btn" onclick="openAlexaSettings()">🔊 読み上げ設定</button>
     </div>
   </div>
 
@@ -285,6 +286,20 @@
   </div>
 </div>
 
+<!-- Alexa読み上げ設定モーダル -->
+<div class="overlay hidden" id="alexaSettingsOverlay" onclick="if(event.target.id==='alexaSettingsOverlay')closeAlexaSettings()">
+  <div class="modal" onclick="event.stopPropagation()" style="max-width:400px">
+    <div class="modal-title">🔊 Alexa読み上げ設定</div>
+    <p style="font-size:13px;color:#9B8EC4;margin-bottom:14px">「Alexa読上」メンバーが設定された予定を、毎日この時刻に読み上げます。</p>
+    <label>読み上げ時刻</label>
+    <input type="time" id="alexaTimeInput" value="07:30" style="width:100%;padding:11px 13px;border-radius:10px;border:2px solid #EDE8FF;font-size:15px;color:#3D2D6B;outline:none;margin-bottom:14px;font-family:inherit">
+    <div class="btn-row">
+      <button class="btn btn-cancel" onclick="closeAlexaSettings()">キャンセル</button>
+      <button class="btn btn-save" onclick="saveAlexaSettings()">保存する</button>
+    </div>
+  </div>
+</div>
+
 <div class="toast" id="toast"></div>
 
 <!-- 不審アクセス警告モーダル -->
@@ -318,6 +333,7 @@ const MEMBERS = [
   { id: "aki",   label: "あき",  emoji: "🌸", color: "#F0A030", light: "#FEF3E2" },
   { id: "hiro",  label: "ひろ",  emoji: "⭐", color: "#9B6DD6", light: "#F2ECFC" },
   { id: "iku",   label: "いく",  emoji: "🌟", color: "#E05C9B", light: "#FCE8F3" },
+  { id: "alexa", label: "Alexa読上", emoji: "🔊", color: "#4A9F8F", light: "#E6F5F2" },
 ];
 const CATEGORY_EMOJIS = ["📅","🏫","🏥","🎉","🚗","⚽","🎵","🍱","🛒","✈️"];
 const WEEKDAYS = ["日","月","火","水","木","金","土"];
@@ -1191,6 +1207,45 @@ function saveToken() {
   showToast("🔑 トークンを保存しました");
 }
 
+// ── Alexa読み上げ設定 ──
+async function openAlexaSettings() {
+  document.getElementById("alexaSettingsOverlay").classList.remove("hidden");
+  try {
+    const res = await fetch(GAS_URL + "?action=getSettings&t=" + Date.now(), { redirect: "follow" });
+    const data = JSON.parse(await res.text());
+    if (data.status === "ok" && data.settings.alexaReadTime) {
+      document.getElementById("alexaTimeInput").value = data.settings.alexaReadTime;
+    }
+  } catch(err) {
+    console.error("getSettings error:", err);
+  }
+}
+function closeAlexaSettings() {
+  document.getElementById("alexaSettingsOverlay").classList.add("hidden");
+}
+async function saveAlexaSettings() {
+  const time = document.getElementById("alexaTimeInput").value;
+  if (!time) { alert("時刻を入力してください"); return; }
+  try {
+    const res = await fetch(GAS_URL, {
+      method: "POST",
+      redirect: "follow",
+      headers: { "Content-Type": "text/plain" },
+      body: JSON.stringify({ action: "saveSettings", key: "alexaReadTime", value: time }),
+    });
+    const data = JSON.parse(await res.text());
+    if (data.status === "ok") {
+      closeAlexaSettings();
+      showToast("🔊 読み上げ時刻を保存しました（" + time + "）");
+    } else {
+      showToast("⚠️ 保存に失敗しました");
+    }
+  } catch(err) {
+    showToast("⚠️ 保存に失敗しました");
+    console.error("saveSettings error:", err);
+  }
+}
+
 init();
 
 if ('serviceWorker' in navigator) {
@@ -1200,7 +1255,7 @@ if ('serviceWorker' in navigator) {
 }
 
 // バージョンチェック：古いキャッシュを検知したら自動リロード
-const CURRENT_VERSION = "v1.10.0";
+const CURRENT_VERSION = "v1.11.0";
 async function checkVersion() {
   try {
     const res = await fetch("https://shifaff-coder.github.io/family-calendar/index.html?t=" + Date.now(), { cache: "no-store" });
