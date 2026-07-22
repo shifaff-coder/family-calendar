@@ -164,7 +164,7 @@
   <div class="header">
     <div style="position:relative">
       <div class="header-sub">朝日カレンダー</div>
-      <span style="position:absolute;top:0;right:0;font-size:10px;color:#C4B8F0;font-weight:500">v1.11.0</span>
+      <span style="position:absolute;top:0;right:0;font-size:10px;color:#C4B8F0;font-weight:500">v1.11.1</span>
     </div>
     <div class="header-nav">
       <button class="nav-btn" onclick="changeMonth(-1)">‹</button>
@@ -801,6 +801,14 @@ async function uploadImage(file) {
     if (saveData.status !== "ok") throw new Error(saveData.message || "保存失敗");
 
     await loadImages();
+    // 新しくアップロードした画像を先頭に表示する
+    const newIdx = state.images.findIndex(function(img) { return img.id === id; });
+    if (newIdx > 0) {
+      const newImg = state.images.splice(newIdx, 1)[0];
+      state.images.unshift(newImg);
+      renderImages();
+      await saveImageOrder();
+    }
     showToast("🖼️ 画像をアップロードしました");
   } catch(err) {
     showToast("⚠️ " + err.message);
@@ -877,15 +885,7 @@ function fileToBase64(file) {
 }
 
 // ── 画像並び替え ──
-async function moveImg(idx, dir, e) {
-  e.stopPropagation();
-  const newIdx = idx + dir;
-  if (newIdx < 0 || newIdx >= state.images.length) return;
-  const tmp = state.images[idx];
-  state.images[idx] = state.images[newIdx];
-  state.images[newIdx] = tmp;
-  renderImages();
-  // GASに並び順を保存
+async function saveImageOrder() {
   try {
     await fetch(GAS_URL, {
       method: "POST",
@@ -894,6 +894,17 @@ async function moveImg(idx, dir, e) {
       body: JSON.stringify({ action: "reorderImages", yearMonth: currentYearMonth(), order: state.images.map(i => i.id) }),
     });
   } catch(err) { console.error("reorderImages error:", err); }
+}
+
+async function moveImg(idx, dir, e) {
+  e.stopPropagation();
+  const newIdx = idx + dir;
+  if (newIdx < 0 || newIdx >= state.images.length) return;
+  const tmp = state.images[idx];
+  state.images[idx] = state.images[newIdx];
+  state.images[newIdx] = tmp;
+  renderImages();
+  await saveImageOrder();
 }
 
 // ── 画像拡大ビューア（ピンチズーム・パン対応）──
@@ -1255,7 +1266,7 @@ if ('serviceWorker' in navigator) {
 }
 
 // バージョンチェック：古いキャッシュを検知したら自動リロード
-const CURRENT_VERSION = "v1.11.0";
+const CURRENT_VERSION = "v1.11.1";
 async function checkVersion() {
   try {
     const res = await fetch("https://shifaff-coder.github.io/family-calendar/index.html?t=" + Date.now(), { cache: "no-store" });
